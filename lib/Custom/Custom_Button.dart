@@ -58,11 +58,10 @@ class _ToggleAddButtonState extends State<ToggleAddButton>
 
   @override
   Widget build(BuildContext context) {
-    double buttonWidth = 120;
+    double buttonWidth = 100;
     double circleSize = 20;
-    double rightPadding = 8; // space to leave from right edge
-    double maxLeft =
-        buttonWidth - circleSize - rightPadding - 8; // 8 is left padding
+    double rightPadding = 8;
+    double maxLeft = buttonWidth - circleSize - rightPadding - 8;
 
     return GestureDetector(
       onTap: _startAnimation,
@@ -79,7 +78,6 @@ class _ToggleAddButtonState extends State<ToggleAddButton>
         ),
         child: Stack(
           children: [
-            // Red fill
             AnimatedBuilder(
               animation: _animation,
               builder: (context, child) {
@@ -94,13 +92,12 @@ class _ToggleAddButtonState extends State<ToggleAddButton>
               },
             ),
 
-            // Moving white circle with check icon
             if (_showIcon)
               AnimatedBuilder(
                 animation: _animation,
                 builder: (context, child) {
                   double left = 8 + (_animation.value * maxLeft);
-                  if (_isCompleted) left = 8 + maxLeft; // stay at end
+                  if (_isCompleted) left = 8 + maxLeft;
                   return Positioned(
                     left: left,
                     top: 10,
@@ -114,6 +111,7 @@ class _ToggleAddButtonState extends State<ToggleAddButton>
                       child: const Icon(
                         Icons.check,
                         color: AppColors.OrangeColor,
+
                         size: 16,
                       ),
                     ),
@@ -121,7 +119,6 @@ class _ToggleAddButtonState extends State<ToggleAddButton>
                 },
               ),
 
-            // Text
             Center(
               child: AnimatedBuilder(
                 animation: _animation,
@@ -132,7 +129,6 @@ class _ToggleAddButtonState extends State<ToggleAddButton>
                       color: (_animation.value > 0 || _isCompleted)
                           ? AppColors.whiteColor
                           : AppColors.LightGreyColor,
-                      // fontWeight: FontWeight.bold,
                     ),
                   );
                 },

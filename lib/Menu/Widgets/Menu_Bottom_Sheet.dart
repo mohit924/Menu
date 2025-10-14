@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:menu_scan_web/Custom/App_colors.dart';
+import 'package:menu_scan_web/Custom/Custom_Button.dart';
 
 class MenuBottomSheet extends StatelessWidget {
   final Map<String, dynamic> item;
@@ -10,29 +12,24 @@ class MenuBottomSheet extends StatelessWidget {
     final height = MediaQuery.of(context).size.height;
 
     return Container(
-      height: height * 0.5, // 50% of screen height
+      height: height * 0.6,
       decoration: const BoxDecoration(
-        color: Colors.white,
+        color: AppColors.secondaryBackground,
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
       child: Column(
         children: [
-          // Smaller image (fits fully)
           SizedBox(
-            height: 100, // fixed smaller height
+            height: height * 0.3,
             width: double.infinity,
             child: ClipRRect(
               borderRadius: const BorderRadius.vertical(
                 top: Radius.circular(20),
               ),
-              child: Image.asset(
-                item["image"],
-                fit: BoxFit.contain, // <-- fit entire image inside
-              ),
+              child: Image.asset(item["image"], fit: BoxFit.contain),
             ),
           ),
 
-          // Rest of the bottom sheet content
           Expanded(
             child: Padding(
               padding: const EdgeInsets.all(16),
@@ -40,38 +37,45 @@ class MenuBottomSheet extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   // Name
-                  Text(
-                    item["name"],
-                    style: const TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-
-                  // Price + Add Button
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
                       Text(
-                        item["price"],
+                        item["name"],
                         style: const TextStyle(
-                          color: Colors.green,
+                          fontSize: 16,
                           fontWeight: FontWeight.bold,
+                          color: AppColors.LightGreyColor,
                         ),
                       ),
-                      ElevatedButton(
+                      ToggleAddButton(
+                        width: 150,
                         onPressed: () {
                           ScaffoldMessenger.of(context).showSnackBar(
                             SnackBar(content: Text("${item["name"]} added!")),
                           );
                         },
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.deepOrange,
-                        ),
-                        child: const Text("Add"),
                       ),
                     ],
+                  ),
+                  const SizedBox(height: 4),
+
+                  Text(
+                    item["price"],
+                    style: const TextStyle(
+                      color: AppColors.OrangeColor,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+
+                  Text(
+                    "Inspirational designs, illustrations, and graphic elements from the world’s best designers.Want more inspiration",
+                    style: const TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                      color: AppColors.LightGreyColor,
+                    ),
                   ),
                   const SizedBox(height: 12),
 

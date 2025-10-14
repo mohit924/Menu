@@ -1,11 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:menu_scan_web/Menu/Screen/Menu_Screen.dart';
+import 'package:menu_scan_web/Menu/Screen_Ui/Menu_screen.dart';
 import 'dart:html' as html;
 import 'package:menu_scan_web/firebase_options.dart';
-import 'package:menu_scan_web/image_upload.dart';
-import 'package:menu_scan_web/name.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();

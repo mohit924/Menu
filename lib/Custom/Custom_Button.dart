@@ -3,7 +3,10 @@ import 'package:menu_scan_web/Custom/App_colors.dart';
 
 class ToggleAddButton extends StatefulWidget {
   final VoidCallback? onPressed;
-  const ToggleAddButton({Key? key, this.onPressed}) : super(key: key);
+  final double? width; // optional width
+
+  const ToggleAddButton({Key? key, this.onPressed, this.width})
+    : super(key: key);
 
   @override
   State<ToggleAddButton> createState() => _ToggleAddButtonState();
@@ -12,7 +15,7 @@ class ToggleAddButton extends StatefulWidget {
 class _ToggleAddButtonState extends State<ToggleAddButton>
     with SingleTickerProviderStateMixin {
   bool _isCompleted = false;
-  bool _showIcon = false;
+  int _count = 0; // quantity
   late AnimationController _controller;
   late Animation<double> _animation;
 
@@ -30,14 +33,12 @@ class _ToggleAddButtonState extends State<ToggleAddButton>
     ).animate(CurvedAnimation(parent: _controller, curve: Curves.easeInOut));
 
     _controller.addStatusListener((status) {
-      if (status == AnimationStatus.forward) {
-        setState(() {
-          _showIcon = true;
-        });
-      }
       if (status == AnimationStatus.completed) {
-        setState(() {
-          _isCompleted = true;
+        Future.delayed(const Duration(milliseconds: 300), () {
+          setState(() {
+            _isCompleted = true;
+            _count = 1; // initial count after adding
+          });
         });
       }
     });
@@ -46,8 +47,25 @@ class _ToggleAddButtonState extends State<ToggleAddButton>
   void _startAnimation() {
     if (!_isCompleted) {
       _controller.forward();
-      if (widget.onPressed != null) widget.onPressed!();
+      widget.onPressed?.call();
     }
+  }
+
+  void _increment() {
+    setState(() {
+      _count++;
+    });
+  }
+
+  void _decrement() {
+    setState(() {
+      _count--;
+      if (_count <= 0) {
+        _count = 0;
+        _isCompleted = false;
+        _controller.reset();
+      }
+    });
   }
 
   @override
@@ -58,7 +76,7 @@ class _ToggleAddButtonState extends State<ToggleAddButton>
 
   @override
   Widget build(BuildContext context) {
-    double buttonWidth = 100;
+    double buttonWidth = widget.width ?? 60; // default width
     double circleSize = 20;
     double rightPadding = 8;
     double maxLeft = buttonWidth - circleSize - rightPadding - 8;
@@ -78,6 +96,7 @@ class _ToggleAddButtonState extends State<ToggleAddButton>
         ),
         child: Stack(
           children: [
+            // Orange background animation
             AnimatedBuilder(
               animation: _animation,
               builder: (context, child) {
@@ -92,47 +111,60 @@ class _ToggleAddButtonState extends State<ToggleAddButton>
               },
             ),
 
-            if (_showIcon)
-              AnimatedBuilder(
-                animation: _animation,
-                builder: (context, child) {
-                  double left = 8 + (_animation.value * maxLeft);
-                  if (_isCompleted) left = 8 + maxLeft;
-                  return Positioned(
-                    left: left,
-                    top: 10,
-                    child: Container(
-                      width: circleSize,
-                      height: circleSize,
-                      decoration: const BoxDecoration(
-                        color: AppColors.whiteColor,
-                        shape: BoxShape.circle,
-                      ),
-                      child: const Icon(
-                        Icons.check,
-                        color: AppColors.OrangeColor,
-
-                        size: 16,
-                      ),
-                    ),
-                  );
-                },
-              ),
-
+            // Center content
             Center(
-              child: AnimatedBuilder(
-                animation: _animation,
-                builder: (context, child) {
-                  return Text(
-                    (_animation.value > 0 || _isCompleted) ? "Added" : "Add",
-                    style: TextStyle(
-                      color: (_animation.value > 0 || _isCompleted)
-                          ? AppColors.whiteColor
-                          : AppColors.LightGreyColor,
+              child: _isCompleted
+                  ? Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        GestureDetector(
+                          onTap: _decrement,
+                          child: Text(
+                            "-",
+                            style: TextStyle(
+                              color: AppColors.whiteColor,
+                              fontSize: 18,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Text(
+                          "$_count",
+                          style: TextStyle(
+                            color: AppColors.whiteColor,
+                            fontSize: 16,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        GestureDetector(
+                          onTap: _increment,
+                          child: Text(
+                            "+",
+                            style: TextStyle(
+                              color: AppColors.whiteColor,
+                              fontSize: 18,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ),
+                      ],
+                    )
+                  : AnimatedBuilder(
+                      animation: _animation,
+                      builder: (context, child) {
+                        return Text(
+                          (_animation.value > 0) ? "" : "Add",
+                          style: TextStyle(
+                            color: (_animation.value > 0)
+                                ? AppColors.whiteColor
+                                : AppColors.LightGreyColor,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        );
+                      },
                     ),
-                  );
-                },
-              ),
             ),
           ],
         ),

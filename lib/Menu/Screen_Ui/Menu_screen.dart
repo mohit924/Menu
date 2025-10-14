@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:menu_scan_web/Custom/App_colors.dart';
 import 'package:menu_scan_web/Custom/Custom_Button.dart';
-import 'package:menu_scan_web/Menu/Screen/Widgets/Menu_Bottom_Sheet.dart';
-import 'package:menu_scan_web/Menu/Screen/Widgets/Menu_Search_Bar.dart';
+import 'package:menu_scan_web/Menu/Widgets/Menu_Bottom_Sheet.dart';
+import 'package:menu_scan_web/Menu/Widgets/Menu_Search_Bar.dart';
 
 class MenuScreen extends StatefulWidget {
   const MenuScreen({Key? key}) : super(key: key);
@@ -123,7 +123,6 @@ class _MenuScreenState extends State<MenuScreen> {
                             ),
                             const SizedBox(height: 4),
 
-                            // Price + Custom Add Button
                             Row(
                               mainAxisAlignment: MainAxisAlignment.spaceBetween,
                               children: [

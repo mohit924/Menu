@@ -2,10 +2,17 @@ import 'package:flutter/material.dart';
 import 'package:menu_scan_web/Custom/App_colors.dart';
 import 'package:menu_scan_web/Custom/Custom_Button.dart';
 
-class MenuBottomSheet extends StatelessWidget {
+class MenuBottomSheet extends StatefulWidget {
   final Map<String, dynamic> item;
 
   const MenuBottomSheet({Key? key, required this.item}) : super(key: key);
+
+  @override
+  State<MenuBottomSheet> createState() => _MenuBottomSheetState();
+}
+
+class _MenuBottomSheetState extends State<MenuBottomSheet> {
+  int count = 1;
 
   @override
   Widget build(BuildContext context) {
@@ -19,80 +26,143 @@ class MenuBottomSheet extends StatelessWidget {
       ),
       child: Column(
         children: [
-          SizedBox(
-            height: height * 0.3,
-            width: double.infinity,
-            child: ClipRRect(
-              borderRadius: const BorderRadius.vertical(
-                top: Radius.circular(20),
-              ),
-              child: Image.asset(item["image"], fit: BoxFit.contain),
-            ),
-          ),
-
+          // Scrollable content
           Expanded(
-            child: Padding(
+            child: SingleChildScrollView(
               padding: const EdgeInsets.all(16),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // Name
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Text(
-                        item["name"],
-                        style: const TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
-                          color: AppColors.LightGreyColor,
-                        ),
-                      ),
-                      ToggleAddButton(
-                        width: 150,
-                        onPressed: () {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(content: Text("${item["name"]} added!")),
-                          );
-                        },
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 4),
-
-                  Text(
-                    item["price"],
-                    style: const TextStyle(
-                      color: AppColors.OrangeColor,
-                      fontWeight: FontWeight.bold,
+                  // Image
+                  ClipRRect(
+                    borderRadius: const BorderRadius.vertical(
+                      top: Radius.circular(20),
+                    ),
+                    child: Image.asset(
+                      widget.item["image"],
+                      fit: BoxFit.contain,
+                      height: height * 0.3,
+                      width: double.infinity,
                     ),
                   ),
-                  const SizedBox(height: 4),
 
+                  const SizedBox(height: 16),
+
+                  // Name
                   Text(
-                    "Inspirational designs, illustrations, and graphic elements from the world’s best designers.Want more inspiration",
+                    widget.item["name"],
                     style: const TextStyle(
                       fontSize: 16,
                       fontWeight: FontWeight.bold,
                       color: AppColors.LightGreyColor,
                     ),
                   ),
-                  const SizedBox(height: 12),
 
-                  // Description scrollable
-                  Expanded(
-                    child: SingleChildScrollView(
-                      child: Text(
-                        item["description"],
-                        style: const TextStyle(
-                          fontSize: 14,
-                          color: Colors.black87,
-                        ),
-                      ),
+                  const SizedBox(height: 12),
+                  Text(
+                    widget.item["description"],
+                    style: const TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.bold,
+                      color: AppColors.LightGreyColor,
                     ),
                   ),
                 ],
               ),
+            ),
+          ),
+
+          // Fixed bottom bar
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: AppColors.secondaryBackground,
+              borderRadius: const BorderRadius.vertical(
+                top: Radius.circular(20),
+              ),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.3),
+                  blurRadius: 10,
+                  offset: const Offset(0, -3),
+                ),
+              ],
+            ),
+            child: Row(
+              children: [
+                // Quantity Controller (- 1 +)
+                Container(
+                  height: 50,
+                  decoration: BoxDecoration(
+                    color: AppColors.black,
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  padding: const EdgeInsets.symmetric(horizontal: 8),
+                  child: Row(
+                    children: [
+                      IconButton(
+                        icon: const Icon(
+                          Icons.remove,
+                          color: AppColors.whiteColor,
+                        ),
+                        onPressed: () {
+                          if (count > 1) {
+                            setState(() {
+                              count--;
+                            });
+                          }
+                        },
+                      ),
+                      Text(
+                        '$count',
+                        style: const TextStyle(
+                          color: AppColors.whiteColor,
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      IconButton(
+                        icon: const Icon(
+                          Icons.add,
+                          color: AppColors.whiteColor,
+                        ),
+                        onPressed: () {
+                          setState(() {
+                            count++;
+                          });
+                        },
+                      ),
+                    ],
+                  ),
+                ),
+
+                const SizedBox(width: 12),
+
+                // Add Item Button
+                Expanded(
+                  child: GestureDetector(
+                    onTap: () {
+                      // Handle add item logic here
+                    },
+                    child: Container(
+                      height: 50,
+                      decoration: BoxDecoration(
+                        color: AppColors.OrangeColor,
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      alignment: Alignment.center,
+                      child: Text(
+                        'Add Item ${widget.item["price"]}',
+                        style: const TextStyle(
+                          color: AppColors.whiteColor,
+                          fontWeight: FontWeight.bold,
+                          fontSize: 16,
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ],
             ),
           ),
         ],

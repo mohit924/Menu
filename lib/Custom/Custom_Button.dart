@@ -2,11 +2,18 @@ import 'package:flutter/material.dart';
 import 'package:menu_scan_web/Custom/App_colors.dart';
 
 class ToggleAddButton extends StatefulWidget {
-  final VoidCallback? onPressed;
-  final double? width; // optional width
+  final bool isCompleted;
+  final int count;
+  final Function(bool, int) onChanged;
+  final double? width;
 
-  const ToggleAddButton({Key? key, this.onPressed, this.width})
-    : super(key: key);
+  const ToggleAddButton({
+    Key? key,
+    required this.isCompleted,
+    required this.count,
+    required this.onChanged,
+    this.width,
+  }) : super(key: key);
 
   @override
   State<ToggleAddButton> createState() => _ToggleAddButtonState();
@@ -14,14 +21,17 @@ class ToggleAddButton extends StatefulWidget {
 
 class _ToggleAddButtonState extends State<ToggleAddButton>
     with SingleTickerProviderStateMixin {
-  bool _isCompleted = false;
-  int _count = 0; // quantity
+  late bool _isCompleted;
+  late int _count;
   late AnimationController _controller;
   late Animation<double> _animation;
 
   @override
   void initState() {
     super.initState();
+    _isCompleted = widget.isCompleted;
+    _count = widget.count;
+
     _controller = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 600),
@@ -32,22 +42,43 @@ class _ToggleAddButtonState extends State<ToggleAddButton>
       end: 1,
     ).animate(CurvedAnimation(parent: _controller, curve: Curves.easeInOut));
 
+    if (_isCompleted) {
+      _controller.value = 1;
+    }
+
     _controller.addStatusListener((status) {
       if (status == AnimationStatus.completed) {
         Future.delayed(const Duration(milliseconds: 300), () {
           setState(() {
             _isCompleted = true;
-            _count = 1; // initial count after adding
+            _count = 1;
           });
+          widget.onChanged(_isCompleted, _count);
         });
       }
     });
   }
 
+  @override
+  void didUpdateWidget(covariant ToggleAddButton oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.isCompleted != _isCompleted || widget.count != _count) {
+      setState(() {
+        _isCompleted = widget.isCompleted;
+        _count = widget.count;
+      });
+      if (_isCompleted) {
+        _controller.value = 1;
+      } else {
+        _controller.reset();
+      }
+    }
+  }
+
   void _startAnimation() {
     if (!_isCompleted) {
       _controller.forward();
-      widget.onPressed?.call();
+      widget.onChanged(_isCompleted, _count);
     }
   }
 
@@ -55,6 +86,7 @@ class _ToggleAddButtonState extends State<ToggleAddButton>
     setState(() {
       _count++;
     });
+    widget.onChanged(_isCompleted, _count);
   }
 
   void _decrement() {
@@ -66,6 +98,7 @@ class _ToggleAddButtonState extends State<ToggleAddButton>
         _controller.reset();
       }
     });
+    widget.onChanged(_isCompleted, _count);
   }
 
   @override
@@ -76,11 +109,7 @@ class _ToggleAddButtonState extends State<ToggleAddButton>
 
   @override
   Widget build(BuildContext context) {
-    double buttonWidth = widget.width ?? 60; // default width
-    double circleSize = 20;
-    double rightPadding = 8;
-    double maxLeft = buttonWidth - circleSize - rightPadding - 8;
-
+    double buttonWidth = widget.width ?? 60;
     return GestureDetector(
       onTap: _startAnimation,
       child: Container(
@@ -96,7 +125,6 @@ class _ToggleAddButtonState extends State<ToggleAddButton>
         ),
         child: Stack(
           children: [
-            // Orange background animation
             AnimatedBuilder(
               animation: _animation,
               builder: (context, child) {
@@ -110,8 +138,6 @@ class _ToggleAddButtonState extends State<ToggleAddButton>
                 );
               },
             ),
-
-            // Center content
             Center(
               child: _isCompleted
                   ? Row(

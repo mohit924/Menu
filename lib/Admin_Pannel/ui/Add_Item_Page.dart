@@ -137,7 +137,6 @@ class _AddItemPageState extends State<AddItemPage> {
                     ),
                     const SizedBox(height: 12),
 
-                    // View Items Button
                     SizedBox(
                       width: double.infinity,
                       height: 48,

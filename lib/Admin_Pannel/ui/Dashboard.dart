@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:menu_scan_web/Admin_Pannel/ui/Category_List_Page.dart';
 import 'package:menu_scan_web/Custom/App_colors.dart';
 import 'package:menu_scan_web/Customer/Widgets/Menu_Search_Bar.dart';
-import 'category_list_page.dart'; // import the category list page
 
 class AdminDashboardPage extends StatefulWidget {
   const AdminDashboardPage({Key? key}) : super(key: key);

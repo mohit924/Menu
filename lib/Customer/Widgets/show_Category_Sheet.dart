@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:menu_scan_web/Custom/App_colors.dart';
 
 class CategoryBottomSheet extends StatelessWidget {
   final List<String> categories;
@@ -36,7 +37,11 @@ class CategoryBottomSheet extends StatelessWidget {
               ),
               const Text(
                 "Categories",
-                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                  color: AppColors.LightGreyColor,
+                ),
               ),
               const SizedBox(height: 12),
               Expanded(
@@ -46,8 +51,15 @@ class CategoryBottomSheet extends StatelessWidget {
                   separatorBuilder: (_, __) => const Divider(),
                   itemBuilder: (context, index) {
                     return ListTile(
-                      title: Text(categories[index]),
-                      trailing: const Icon(Icons.arrow_forward_ios, size: 16),
+                      title: Text(
+                        categories[index],
+                        style: TextStyle(color: AppColors.OrangeColor),
+                      ),
+                      trailing: const Icon(
+                        Icons.arrow_forward_ios,
+                        size: 16,
+                        color: AppColors.LightGreyColor,
+                      ),
                       onTap: () {
                         Navigator.pop(context);
                         onSelect(categories[index]);
@@ -71,6 +83,7 @@ class CategoryBottomSheet extends StatelessWidget {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
+      backgroundColor: AppColors.primaryBackground,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),

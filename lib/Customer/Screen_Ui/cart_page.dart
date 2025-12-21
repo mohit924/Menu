@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:menu_scan_web/Custom/App_colors.dart';
 import 'package:menu_scan_web/Custom/place_order_button.dart';
-import 'package:menu_scan_web/Menu/Screen_Ui/Menu_screen.dart';
+import 'package:menu_scan_web/Customer/Screen_Ui/Menu_screen.dart';
 
 class CartPage extends StatefulWidget {
   const CartPage({Key? key}) : super(key: key);
@@ -61,19 +61,6 @@ class _CartPageState extends State<CartPage> {
             );
           },
         ),
-        actions: [
-          IconButton(
-            icon: const Icon(
-              Icons.shopping_cart_checkout,
-              color: AppColors.whiteColor,
-            ),
-            onPressed: () {
-              // Place order action
-              print("Place Order clicked!");
-              // You can also call your existing PlaceOrderButton logic here
-            },
-          ),
-        ],
       ),
 
       backgroundColor: AppColors.primaryBackground,
@@ -108,21 +95,16 @@ class _CartPageState extends State<CartPage> {
                           child: Row(
                             children: [
                               // Circle indicator
-                              Container(
-                                width: 16,
-                                height: 16,
-                                margin: const EdgeInsets.only(right: 12),
-                                decoration: BoxDecoration(
-                                  shape: BoxShape.circle,
-                                  border: Border.all(
-                                    color: AppColors.whiteColor,
-                                    width: 2,
-                                  ),
-                                  color: index % 2 == 0
-                                      ? Colors.red
-                                      : Colors.green,
+                              ClipRRect(
+                                borderRadius: BorderRadius.circular(8),
+                                child: Image.asset(
+                                  "assets/noodles.png",
+                                  width: 40,
+                                  height: 40,
+                                  fit: BoxFit.cover,
                                 ),
                               ),
+                              const SizedBox(width: 12),
 
                               // Name column
                               Expanded(
@@ -219,11 +201,7 @@ class _CartPageState extends State<CartPage> {
                         fontSize: 16,
                       ),
                     ),
-                    PlaceOrderButton(
-                      onPressed: () {
-                        print("Place Order clicked!");
-                      },
-                    ),
+                    PlaceOrderButton(onPressed: () {}),
                   ],
                 ),
               ],

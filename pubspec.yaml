@@ -67,6 +67,8 @@ flutter:
   assets:
     - assets/noodles.png
     - assets/contactusimg.png
+    - assets/pre_login_bg.png
+    - assets/post_login_bg.png
 
   #   - images/a_dot_ham.jpeg
 

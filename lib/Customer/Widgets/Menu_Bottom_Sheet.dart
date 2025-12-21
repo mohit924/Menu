@@ -1,11 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:menu_scan_web/Custom/App_colors.dart';
-import 'package:menu_scan_web/Custom/Custom_Button.dart';
 
 class MenuBottomSheet extends StatefulWidget {
   final Map<String, dynamic> item;
+  final Function(int count) onAdd;
 
-  const MenuBottomSheet({Key? key, required this.item}) : super(key: key);
+  const MenuBottomSheet({Key? key, required this.item, required this.onAdd})
+    : super(key: key);
 
   @override
   State<MenuBottomSheet> createState() => _MenuBottomSheetState();
@@ -142,8 +143,10 @@ class _MenuBottomSheetState extends State<MenuBottomSheet> {
                 Expanded(
                   child: GestureDetector(
                     onTap: () {
-                      // Handle add item logic here
+                      widget.onAdd(count);
+                      Navigator.pop(context);
                     },
+
                     child: Container(
                       height: 50,
                       decoration: BoxDecoration(

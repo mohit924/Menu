@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:menu_scan_web/Menu/Screen_Ui/Menu_screen.dart';
+import 'package:menu_scan_web/Admin_Pannel/ui/login.dart';
+import 'package:menu_scan_web/Customer/Screen_Ui/Menu_screen.dart';
 // import 'dart:html' as html;
 import 'package:menu_scan_web/firebase_options.dart';
 
@@ -28,7 +29,8 @@ class MyApp extends StatelessWidget {
       title: 'Name Collector',
       theme: ThemeData(primarySwatch: Colors.blue),
       // home: NamePage(idFromQR: idFromQR),
-      home: MenuScreen(),
+      // home: MenuScreen(),
+      home: LoginPage(),
       debugShowCheckedModeBanner: false,
     );
   }

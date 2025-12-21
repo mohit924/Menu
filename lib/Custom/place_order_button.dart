@@ -8,7 +8,7 @@ class PlaceOrderButton extends StatelessWidget {
   const PlaceOrderButton({
     Key? key,
     required this.onPressed,
-    this.title = "Place Order",
+    this.title = "Call Waiter",
   }) : super(key: key);
 
   @override

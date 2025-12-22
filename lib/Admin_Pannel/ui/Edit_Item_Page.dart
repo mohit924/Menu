@@ -5,18 +5,24 @@ import 'package:menu_scan_web/Admin_Pannel/ui/Category_List_Page.dart';
 import 'package:menu_scan_web/Admin_Pannel/widgets/common_header.dart';
 import 'package:menu_scan_web/Custom/App_colors.dart';
 
-class AddItemPage extends StatefulWidget {
+class EditItemPage extends StatefulWidget {
   final int categoryIndex;
-  const AddItemPage({Key? key, required this.categoryIndex}) : super(key: key);
+  final int itemIndex;
+
+  const EditItemPage({
+    Key? key,
+    required this.categoryIndex,
+    required this.itemIndex,
+  }) : super(key: key);
 
   @override
-  State<AddItemPage> createState() => _AddItemPageState();
+  State<EditItemPage> createState() => _EditItemPageState();
 }
 
-class _AddItemPageState extends State<AddItemPage> {
-  final TextEditingController _nameController = TextEditingController();
-  final TextEditingController _priceController = TextEditingController();
-  final TextEditingController _descriptionController = TextEditingController();
+class _EditItemPageState extends State<EditItemPage> {
+  late TextEditingController _nameController;
+  late TextEditingController _priceController;
+  late TextEditingController _descriptionController;
 
   Uint8List? _imageBytes;
   final ImagePicker _picker = ImagePicker();
@@ -24,6 +30,20 @@ class _AddItemPageState extends State<AddItemPage> {
   // Veg / Non-Veg state
   bool _isVeg = false;
   bool _isNonVeg = false;
+
+  @override
+  void initState() {
+    super.initState();
+    final item = categories[widget.categoryIndex]["items"][widget.itemIndex];
+    _nameController = TextEditingController(text: item["name"]);
+    _priceController = TextEditingController(text: item["price"]);
+    _descriptionController = TextEditingController(text: item["description"]);
+    _imageBytes = item["image"];
+    if (item.containsKey("type")) {
+      _isVeg = item["type"] == "Veg";
+      _isNonVeg = item["type"] == "Non-Veg";
+    }
+  }
 
   Future<void> _pickImage() async {
     final XFile? image = await _picker.pickImage(source: ImageSource.gallery);
@@ -69,7 +89,7 @@ class _AddItemPageState extends State<AddItemPage> {
                         mainAxisSize: MainAxisSize.min,
                         children: [
                           const Text(
-                            "Add Item",
+                            "Edit Item",
                             style: TextStyle(
                               color: AppColors.whiteColor,
                               fontSize: 24,
@@ -138,10 +158,9 @@ class _AddItemPageState extends State<AddItemPage> {
                                     ),
                             ),
                           ),
-
                           const SizedBox(height: 24),
 
-                          // Veg / Non-Veg checkboxes in a single row
+                          // Veg / Non-Veg checkboxes inline
                           Row(
                             children: [
                               Row(
@@ -166,9 +185,7 @@ class _AddItemPageState extends State<AddItemPage> {
                                   ),
                                 ],
                               ),
-                              const SizedBox(
-                                width: 16,
-                              ), // space between Veg and Non-Veg
+                              const SizedBox(width: 16),
                               Row(
                                 children: [
                                   Checkbox(
@@ -196,7 +213,7 @@ class _AddItemPageState extends State<AddItemPage> {
 
                           const SizedBox(height: 16),
 
-                          // Add Button
+                          // Update Button
                           SizedBox(
                             width: double.infinity,
                             height: 48,
@@ -212,8 +229,10 @@ class _AddItemPageState extends State<AddItemPage> {
                                     _priceController.text.isNotEmpty &&
                                     _descriptionController.text.isNotEmpty &&
                                     _imageBytes != null) {
-                                  categories[widget.categoryIndex]["items"].add(
-                                    {
+                                  setState(() {
+                                    categories[widget
+                                        .categoryIndex]["items"][widget
+                                        .itemIndex] = {
                                       "name": _nameController.text,
                                       "price": _priceController.text,
                                       "description":
@@ -222,13 +241,13 @@ class _AddItemPageState extends State<AddItemPage> {
                                       "type": _isVeg
                                           ? "Veg"
                                           : (_isNonVeg ? "Non-Veg" : "Unknown"),
-                                    },
-                                  );
+                                    };
+                                  });
                                   Navigator.pop(context);
                                 }
                               },
                               child: const Text(
-                                "Add Item",
+                                "Update Item",
                                 style: TextStyle(
                                   fontSize: 16,
                                   fontWeight: FontWeight.bold,
@@ -237,10 +256,9 @@ class _AddItemPageState extends State<AddItemPage> {
                               ),
                             ),
                           ),
-
                           const SizedBox(height: 12),
 
-                          // View Items
+                          // Cancel Button
                           SizedBox(
                             width: double.infinity,
                             height: 48,
@@ -255,7 +273,7 @@ class _AddItemPageState extends State<AddItemPage> {
                               ),
                               onPressed: () => Navigator.pop(context),
                               child: const Text(
-                                "View Items",
+                                "Cancel",
                                 style: TextStyle(
                                   fontSize: 16,
                                   fontWeight: FontWeight.bold,
@@ -284,10 +302,10 @@ class _AddItemPageState extends State<AddItemPage> {
     TextInputType keyboardType = TextInputType.text,
   }) {
     return TextField(
-      style: const TextStyle(color: AppColors.whiteColor),
       controller: controller,
       maxLines: maxLines,
       keyboardType: keyboardType,
+      style: const TextStyle(color: AppColors.whiteColor),
       decoration: InputDecoration(
         labelText: label,
         labelStyle: const TextStyle(color: AppColors.LightGreyColor),
@@ -295,6 +313,10 @@ class _AddItemPageState extends State<AddItemPage> {
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
           borderSide: const BorderSide(color: AppColors.OrangeColor),
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: const BorderSide(color: AppColors.LightGreyColor),
         ),
       ),
     );

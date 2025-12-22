@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:menu_scan_web/Admin_Pannel/ui/Category_List_Page.dart';
+import 'package:menu_scan_web/Admin_Pannel/widgets/common_header.dart';
 import 'package:menu_scan_web/Custom/App_colors.dart';
-import 'package:menu_scan_web/Customer/Widgets/Menu_Search_Bar.dart';
 
 class AdminDashboardPage extends StatefulWidget {
   const AdminDashboardPage({Key? key}) : super(key: key);
@@ -36,14 +36,7 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
     },
   ];
 
-  final TextEditingController _searchController = TextEditingController();
   String _searchQuery = '';
-
-  @override
-  void dispose() {
-    _searchController.dispose();
-    super.dispose();
-  }
 
   List<Map<String, dynamic>> get filteredCategories {
     if (_searchQuery.isEmpty) return categories;
@@ -71,119 +64,113 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
 
     return Scaffold(
       backgroundColor: AppColors.primaryBackground,
-      appBar: AppBar(
-        title: const Text(
-          "Admin Dashboard",
-          style: TextStyle(color: AppColors.whiteColor),
-        ),
-        backgroundColor: AppColors.primaryBackground,
-      ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          children: [
-            MenuSearchBar(
-              controller: _searchController,
-              onChanged: (val) {
-                setState(() {
-                  _searchQuery = val;
-                });
-              },
-            ),
-            const SizedBox(height: 16),
-            ...filteredCategories.map((category) {
-              return Container(
-                margin: const EdgeInsets.only(bottom: 16),
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: AppColors.secondaryBackground,
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    InkWell(
-                      onTap: () {
-                        setState(() {
-                          category["expanded"] =
-                              !(category["expanded"] as bool);
-                        });
-                      },
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Row(
+      body: Column(
+        children: [
+          // Fixed header at top
+          const SizedBox(height: 25),
+
+          CommonHeader(
+            showSearchBar: true,
+            onSearchChanged: (val) {
+              setState(() {
+                _searchQuery = val;
+              });
+            },
+          ),
+          const SizedBox(height: 16),
+
+          // Scrollable content
+          Expanded(
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                children: filteredCategories.map((category) {
+                  return Container(
+                    margin: const EdgeInsets.only(bottom: 16),
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: AppColors.secondaryBackground,
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        InkWell(
+                          onTap: () {
+                            setState(() {
+                              category["expanded"] =
+                                  !(category["expanded"] as bool);
+                            });
+                          },
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
                             children: [
-                              Icon(
-                                category["icon"],
-                                color: AppColors.OrangeColor,
+                              Row(
+                                children: [
+                                  Icon(
+                                    category["icon"],
+                                    color: AppColors.OrangeColor,
+                                  ),
+                                  const SizedBox(width: 8),
+                                  Text(
+                                    category["name"],
+                                    style: const TextStyle(
+                                      fontSize: 18,
+                                      fontWeight: FontWeight.bold,
+                                      color: AppColors.LightGreyColor,
+                                    ),
+                                  ),
+                                ],
                               ),
-                              const SizedBox(width: 8),
-                              Text(
-                                category["name"],
-                                style: const TextStyle(
-                                  fontSize: 18,
-                                  fontWeight: FontWeight.bold,
-                                  color: AppColors.LightGreyColor,
-                                ),
+                              Icon(
+                                category["expanded"]
+                                    ? Icons.keyboard_arrow_up
+                                    : Icons.keyboard_arrow_down,
+                                color: AppColors.OrangeColor,
+                                size: 28,
                               ),
                             ],
                           ),
-                          Icon(
-                            category["expanded"]
-                                ? Icons.keyboard_arrow_up
-                                : Icons.keyboard_arrow_down,
-                            color: AppColors.OrangeColor,
-                            size: 28,
-                          ),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-                    if (category["expanded"] as bool)
-                      LayoutBuilder(
-                        builder: (context, constraints) {
-                          final cardCount = isMobile
-                              ? 1
-                              : (constraints.maxWidth ~/ 320);
-                          final spacing = 16.0;
-                          final cardWidth = isMobile
-                              ? constraints.maxWidth
-                              : (constraints.maxWidth -
-                                        (cardCount - 1) * spacing) /
-                                    cardCount;
+                        ),
+                        const SizedBox(height: 12),
+                        if (category["expanded"] as bool)
+                          LayoutBuilder(
+                            builder: (context, constraints) {
+                              final cardCount = isMobile
+                                  ? 1
+                                  : (constraints.maxWidth ~/ 320);
+                              final spacing = 16.0;
+                              final cardWidth = isMobile
+                                  ? constraints.maxWidth
+                                  : (constraints.maxWidth -
+                                            (cardCount - 1) * spacing) /
+                                        cardCount;
 
-                          return Wrap(
-                            spacing: spacing,
-                            runSpacing: spacing,
-                            children: (category["items"] as List)
-                                .map<Widget>(
-                                  (item) => SizedBox(
-                                    width: cardWidth,
-                                    child: ItemCard(item: item, isMobile: true),
-                                  ),
-                                )
-                                .toList(),
-                          );
-                        },
-                      ),
-                  ],
-                ),
-              );
-            }).toList(),
-          ],
-        ),
-      ),
-      floatingActionButton: FloatingActionButton(
-        backgroundColor: AppColors.OrangeColor,
-        child: const Icon(Icons.category),
-        onPressed: () {
-          // Navigate to Category List Page
-          Navigator.push(
-            context,
-            MaterialPageRoute(builder: (_) => const CategoryListPage()),
-          );
-        },
+                              return Wrap(
+                                spacing: spacing,
+                                runSpacing: spacing,
+                                children: (category["items"] as List)
+                                    .map<Widget>(
+                                      (item) => SizedBox(
+                                        width: cardWidth,
+                                        child: ItemCard(
+                                          item: item,
+                                          isMobile: true,
+                                        ),
+                                      ),
+                                    )
+                                    .toList(),
+                              );
+                            },
+                          ),
+                      ],
+                    ),
+                  );
+                }).toList(),
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }

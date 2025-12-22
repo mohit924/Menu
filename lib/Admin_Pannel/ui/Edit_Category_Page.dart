@@ -3,16 +3,26 @@ import 'package:menu_scan_web/Admin_Pannel/ui/Category_List_Page.dart';
 import 'package:menu_scan_web/Admin_Pannel/widgets/common_header.dart';
 import 'package:menu_scan_web/Custom/App_colors.dart';
 
-class AddCategoryPage extends StatefulWidget {
-  const AddCategoryPage({Key? key}) : super(key: key);
+class EditCategoryPage extends StatefulWidget {
+  final int categoryIndex;
+  const EditCategoryPage({Key? key, required this.categoryIndex})
+    : super(key: key);
 
   @override
-  State<AddCategoryPage> createState() => _AddCategoryPageState();
+  State<EditCategoryPage> createState() => _EditCategoryPageState();
 }
 
-class _AddCategoryPageState extends State<AddCategoryPage> {
-  final TextEditingController _nameController = TextEditingController();
-  IconData _icon = Icons.fastfood;
+class _EditCategoryPageState extends State<EditCategoryPage> {
+  late TextEditingController _nameController;
+  late IconData _icon;
+
+  @override
+  void initState() {
+    super.initState();
+    final category = categories[widget.categoryIndex];
+    _nameController = TextEditingController(text: category["name"]);
+    _icon = category["icon"];
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -20,14 +30,21 @@ class _AddCategoryPageState extends State<AddCategoryPage> {
 
     return Scaffold(
       backgroundColor: AppColors.primaryBackground,
+
       body: Stack(
         children: [
+          // Background Image
+          // Positioned.fill(
+          //   child: Image.asset("assets/post_login_bg.png", fit: BoxFit.cover),
+          // ),
           Column(
             children: [
               const SizedBox(height: 25),
 
+              // Common Header (fixed, not scrollable)
               const CommonHeader(showSearchBar: false),
 
+              // Scrollable form
               Expanded(
                 child: Center(
                   child: SingleChildScrollView(
@@ -48,8 +65,8 @@ class _AddCategoryPageState extends State<AddCategoryPage> {
                       child: Column(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          Text(
-                            "Add Category",
+                          const Text(
+                            "Edit Category",
                             style: TextStyle(
                               color: AppColors.whiteColor,
                               fontSize: 24,
@@ -79,12 +96,17 @@ class _AddCategoryPageState extends State<AddCategoryPage> {
                                   color: AppColors.OrangeColor,
                                 ),
                               ),
+                              enabledBorder: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(12),
+                                borderSide: const BorderSide(
+                                  color: AppColors.LightGreyColor,
+                                ),
+                              ),
                             ),
                           ),
-
                           const SizedBox(height: 24),
 
-                          // Add Category Button
+                          // Save Button
                           SizedBox(
                             width: double.infinity,
                             height: 48,
@@ -97,16 +119,17 @@ class _AddCategoryPageState extends State<AddCategoryPage> {
                               ),
                               onPressed: () {
                                 if (_nameController.text.isNotEmpty) {
-                                  categories.add({
-                                    "name": _nameController.text,
-                                    "icon": _icon,
-                                    "items": [],
+                                  setState(() {
+                                    categories[widget.categoryIndex]["name"] =
+                                        _nameController.text;
+                                    categories[widget.categoryIndex]["icon"] =
+                                        _icon;
                                   });
                                   Navigator.pop(context);
                                 }
                               },
                               child: const Text(
-                                "Add Category",
+                                "Save Changes",
                                 style: TextStyle(
                                   fontSize: 16,
                                   color: AppColors.whiteColor,
@@ -118,7 +141,7 @@ class _AddCategoryPageState extends State<AddCategoryPage> {
 
                           const SizedBox(height: 12),
 
-                          // View Categories Button
+                          // Cancel Button
                           SizedBox(
                             width: double.infinity,
                             height: 48,
@@ -131,13 +154,9 @@ class _AddCategoryPageState extends State<AddCategoryPage> {
                                   borderRadius: BorderRadius.circular(12),
                                 ),
                               ),
-                              onPressed: () {
-                                Navigator.pop(context);
-                                // Or push explicitly:
-                                // Navigator.push(context, MaterialPageRoute(builder: (_) => const CategoryListPage()));
-                              },
+                              onPressed: () => Navigator.pop(context),
                               child: const Text(
-                                "View Categories",
+                                "Cancel",
                                 style: TextStyle(
                                   fontSize: 16,
                                   fontWeight: FontWeight.bold,

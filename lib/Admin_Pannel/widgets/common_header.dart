@@ -8,7 +8,7 @@ import 'package:menu_scan_web/Custom/App_colors.dart';
 
 class CommonHeader extends StatefulWidget {
   final double height;
-  final double horizontalPadding; // padding outside container
+  final double horizontalPadding;
   final double maxWidth;
   final bool showSearchBar;
   final ValueChanged<String>? onSearchChanged;
@@ -27,7 +27,6 @@ class CommonHeader extends StatefulWidget {
 }
 
 class _CommonHeaderState extends State<CommonHeader> {
-  bool _isMobileSearchOpen = false;
   final TextEditingController _controller = TextEditingController();
 
   @override
@@ -47,193 +46,76 @@ class _CommonHeaderState extends State<CommonHeader> {
           child: Row(
             children: [
               const SizedBox(width: 12),
-              const Icon(Icons.menu, color: AppColors.OrangeColor, size: 28),
+
+              // Menu icon
+              isDesktop
+                  ? const Icon(
+                      Icons.menu,
+                      color: AppColors.OrangeColor,
+                      size: 28,
+                    )
+                  : const MobileMenuButton(),
+
               const SizedBox(width: 12),
 
-              // Mobile search open
-              if (!isDesktop && _isMobileSearchOpen)
-                Expanded(
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 12),
-                    child: SizedBox(
-                      height: 50,
-                      child: TextField(
-                        controller: _controller,
-                        onChanged: widget.onSearchChanged,
-                        style: const TextStyle(color: AppColors.whiteColor),
-                        decoration: InputDecoration(
-                          contentPadding: const EdgeInsets.symmetric(
-                            horizontal: 12,
-                            vertical: 0,
-                          ),
-                          hintText: "Search...",
-                          hintStyle: const TextStyle(
-                            color: AppColors.LightGreyColor,
-                          ),
-                          filled: true,
-                          fillColor: AppColors.primaryBackground,
-                          border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(8),
-                            borderSide: BorderSide.none,
-                          ),
-                          suffixIcon: IconButton(
-                            icon: const Icon(
-                              Icons.close,
-                              color: AppColors.whiteColor,
-                            ),
-                            onPressed: () {
-                              setState(() {
-                                _isMobileSearchOpen = false;
-                                _controller.clear();
-                                if (widget.onSearchChanged != null) {
-                                  widget.onSearchChanged!("");
-                                }
-                              });
-                            },
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
-                )
-              else ...[
-                if (isDesktop || !_isMobileSearchOpen) ...[
-                  _headerButton(context, "Dashboard", () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (_) => const AdminDashboardPage(),
-                      ),
-                    );
-                  }),
-                  const SizedBox(width: 24),
-                  _headerButton(context, "Category", () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (_) => const CategoryListPage(),
-                      ),
-                    );
-                  }),
-                  const SizedBox(width: 24),
-                  _headerButton(context, "Items", () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (_) => const ItemListPage(categoryIndex: 0),
-                      ),
-                    );
-                  }),
-                  // const SizedBox(width: 24),
-                  // _headerButton(context, "Contact", () {
-                  //   Navigator.push(
-                  //     context,
-                  //     MaterialPageRoute(builder: (_) => const ContactUsPage()),
-                  //   );
-                  // }),
-                ],
+              // Desktop menu buttons
+              if (isDesktop) const HeaderMenuButtons(),
 
-                const Spacer(),
+              // Spacer before search field (desktop keeps menu buttons left)
+              if (isDesktop) const Spacer(),
 
-                // Desktop search bar or mobile search icon
-                if (widget.showSearchBar)
-                  if (isDesktop)
-                    Expanded(
-                      child: SizedBox(
-                        height: 50,
-                        child: TextField(
-                          controller: _controller,
-                          style: const TextStyle(color: AppColors.whiteColor),
-                          onChanged: (val) {
-                            setState(() {});
-                            if (widget.onSearchChanged != null) {
-                              widget.onSearchChanged!(val);
-                            }
-                          },
-                          decoration: InputDecoration(
-                            contentPadding: const EdgeInsets.symmetric(
-                              horizontal: 12,
-                              vertical: 0,
-                            ),
-                            hintText: "Search...",
-                            hintStyle: const TextStyle(
-                              color: AppColors.LightGreyColor,
-                            ),
-                            filled: true,
-                            fillColor: AppColors.primaryBackground,
-                            border: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(8),
-                              borderSide: BorderSide.none,
-                            ),
-                            suffixIcon: _controller.text.isNotEmpty
-                                ? IconButton(
-                                    icon: const Icon(
-                                      Icons.close,
-                                      color: AppColors.whiteColor,
-                                    ),
-                                    onPressed: () {
-                                      setState(() {
-                                        _controller.clear();
-                                        if (widget.onSearchChanged != null) {
-                                          widget.onSearchChanged!("");
-                                        }
-                                      });
-                                    },
-                                  )
-                                : null,
-                          ),
-                        ),
-                      ),
-                    )
-                  else
-                    IconButton(
-                      icon: const Icon(
-                        Icons.search,
-                        color: AppColors.whiteColor,
-                      ),
-                      onPressed: () {
-                        setState(() {
-                          _isMobileSearchOpen = true;
-                        });
-                      },
-                    ),
-
-                const SizedBox(width: 16),
-
-                // Profile icon always visible
-                // Replace your existing CircleAvatar in CommonHeader with this:
-                InkWell(
-                  onTap: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (_) => const UpdateProfilePage(),
-                      ),
-                    );
-                  },
-                  child: CircleAvatar(
-                    radius: 18,
-                    backgroundColor: AppColors.OrangeColor,
-                    child: const Icon(
-                      Icons.person,
-                      size: 20,
-                      color: AppColors.whiteColor,
-                    ),
+              // Search Field
+              Expanded(
+                child: Padding(
+                  padding: isDesktop
+                      ? const EdgeInsets.symmetric(horizontal: 12)
+                      : EdgeInsets.zero, // mobile takes full space
+                  child: SearchField(
+                    controller: _controller,
+                    onChanged: widget.onSearchChanged,
+                    onClose: () {
+                      _controller.clear();
+                      widget.onSearchChanged?.call("");
+                    },
                   ),
                 ),
+              ),
 
-                const SizedBox(width: 12),
-              ],
+              const SizedBox(width: 16),
+              const ProfileAvatar(),
+              const SizedBox(width: 12),
             ],
           ),
         ),
       ),
     );
   }
+}
 
-  Widget _headerButton(BuildContext context, String text, VoidCallback onTap) {
+// ------------------- Separate Widgets -------------------
+
+class HeaderMenuButtons extends StatelessWidget {
+  const HeaderMenuButtons({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        _headerButton(context, "Dashboard", const AdminDashboardPage()),
+        const SizedBox(width: 24),
+        _headerButton(context, "Category", const CategoryListPage()),
+        const SizedBox(width: 24),
+        _headerButton(context, "Items", const ItemListPage(categoryIndex: 0)),
+        const SizedBox(width: 24),
+        _headerButton(context, "Contact", const ContactUsPage()),
+      ],
+    );
+  }
+
+  Widget _headerButton(BuildContext context, String text, Widget page) {
     return InkWell(
-      onTap: onTap,
+      onTap: () =>
+          Navigator.push(context, MaterialPageRoute(builder: (_) => page)),
       child: Text(
         text,
         style: const TextStyle(
@@ -241,6 +123,121 @@ class _CommonHeaderState extends State<CommonHeader> {
           fontSize: 15,
           fontWeight: FontWeight.bold,
         ),
+      ),
+    );
+  }
+}
+
+class MobileMenuButton extends StatelessWidget {
+  const MobileMenuButton({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return IconButton(
+      icon: const Icon(Icons.menu, color: AppColors.OrangeColor, size: 28),
+      onPressed: () => showModalBottomSheet(
+        context: context,
+        backgroundColor: AppColors.secondaryBackground,
+        shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+        ),
+        builder: (context) => Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            _bottomSheetItem(context, "Dashboard", const AdminDashboardPage()),
+            _bottomSheetItem(context, "Category", const CategoryListPage()),
+            _bottomSheetItem(
+              context,
+              "Items",
+              const ItemListPage(categoryIndex: 0),
+            ),
+            _bottomSheetItem(context, "Contact", const ContactUsPage()),
+            const SizedBox(height: 12),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _bottomSheetItem(BuildContext context, String title, Widget page) {
+    return ListTile(
+      title: Text(
+        title,
+        style: const TextStyle(
+          color: AppColors.whiteColor,
+          fontWeight: FontWeight.bold,
+          fontSize: 16,
+        ),
+      ),
+      onTap: () {
+        Navigator.pop(context);
+        Navigator.push(context, MaterialPageRoute(builder: (_) => page));
+      },
+    );
+  }
+}
+
+class SearchField extends StatelessWidget {
+  final TextEditingController controller;
+  final ValueChanged<String>? onChanged;
+  final VoidCallback onClose;
+
+  const SearchField({
+    super.key,
+    required this.controller,
+    this.onChanged,
+    required this.onClose,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      height: 50,
+      child: TextField(
+        controller: controller,
+        onChanged: onChanged,
+        style: const TextStyle(color: AppColors.whiteColor),
+        decoration: InputDecoration(
+          contentPadding: const EdgeInsets.symmetric(
+            horizontal: 12,
+            vertical: 0,
+          ),
+          hintText: "Search...",
+          hintStyle: const TextStyle(color: AppColors.LightGreyColor),
+          filled: true,
+          fillColor: AppColors.primaryBackground,
+          border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(8),
+            borderSide: BorderSide.none,
+          ),
+          suffixIcon: controller.text.isNotEmpty
+              ? IconButton(
+                  icon: const Icon(Icons.close, color: AppColors.whiteColor),
+                  onPressed: onClose,
+                )
+              : null,
+        ),
+      ),
+    );
+  }
+}
+
+class ProfileAvatar extends StatelessWidget {
+  const ProfileAvatar({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: () {
+        Navigator.push(
+          context,
+          MaterialPageRoute(builder: (_) => const UpdateProfilePage()),
+        );
+      },
+      child: CircleAvatar(
+        radius: 18,
+        backgroundColor: AppColors.OrangeColor,
+        child: const Icon(Icons.person, size: 20, color: AppColors.whiteColor),
       ),
     );
   }

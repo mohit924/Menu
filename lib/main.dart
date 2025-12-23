@@ -36,12 +36,14 @@
 //     );
 //   }
 // }
+
 import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:menu_scan_web/Admin_Pannel/ui/Dashboard.dart';
 import 'package:menu_scan_web/Admin_Pannel/ui/login.dart';
+import 'package:menu_scan_web/Admin_Pannel/widgets/ItemListPageLang.dart';
 import 'package:menu_scan_web/Customer/Screen_Ui/Menu_screen.dart';
 import 'package:menu_scan_web/firebase_options.dart';
 import 'dart:html' as html;
@@ -67,7 +69,9 @@ class MyApp extends StatelessWidget {
       title: 'Name Collector',
       theme: ThemeData(primarySwatch: Colors.blue),
       debugShowCheckedModeBanner: false,
-      home: LoginPage(),
+      home: ZoomableAppWrapper(
+        child: LoginPage(), // your initial screen
+      ),
       builder: (context, child) {
         // Allow scroll gestures on mobile and mouse
         return ScrollConfiguration(
@@ -77,6 +81,23 @@ class MyApp extends StatelessWidget {
           child: child!,
         );
       },
+    );
+  }
+}
+
+class ZoomableAppWrapper extends StatelessWidget {
+  final Widget child;
+
+  const ZoomableAppWrapper({required this.child});
+
+  @override
+  Widget build(BuildContext context) {
+    return InteractiveViewer(
+      panEnabled: true,
+      scaleEnabled: true,
+      minScale: 1.0,
+      maxScale: 5.0,
+      child: child,
     );
   }
 }

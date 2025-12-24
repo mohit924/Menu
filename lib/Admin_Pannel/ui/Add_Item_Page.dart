@@ -1,19 +1,21 @@
 import 'dart:typed_data';
+
 import 'package:flutter/material.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:image_picker/image_picker.dart';
-import 'package:menu_scan_web/Admin_Pannel/ui/Category_List_Page.dart';
 import 'package:menu_scan_web/Admin_Pannel/widgets/common_header.dart';
 import 'package:menu_scan_web/Custom/App_colors.dart';
 
 class AddItemPage extends StatefulWidget {
-  final int categoryIndex;
-  const AddItemPage({Key? key, required this.categoryIndex}) : super(key: key);
+  const AddItemPage({Key? key}) : super(key: key);
 
   @override
   State<AddItemPage> createState() => _AddItemPageState();
 }
 
 class _AddItemPageState extends State<AddItemPage> {
+  final _firestore = FirebaseFirestore.instance;
+
   final TextEditingController _nameController = TextEditingController();
   final TextEditingController _priceController = TextEditingController();
   final TextEditingController _descriptionController = TextEditingController();
@@ -25,6 +27,19 @@ class _AddItemPageState extends State<AddItemPage> {
   bool _isVeg = false;
   bool _isNonVeg = false;
 
+  String hotelID = "OPSY";
+
+  int? selectedCategoryID;
+  String? selectedCategoryName;
+
+  List<Map<String, dynamic>> categories = [];
+
+  @override
+  void initState() {
+    super.initState();
+    fetchCategories();
+  }
+
   Future<void> _pickImage() async {
     final XFile? image = await _picker.pickImage(source: ImageSource.gallery);
     if (image != null) {
@@ -35,268 +50,291 @@ class _AddItemPageState extends State<AddItemPage> {
     }
   }
 
+  Future<void> fetchCategories() async {
+    final snapshot = await _firestore
+        .collection('AddCategory')
+        .orderBy('categoryID')
+        .get();
+
+    setState(() {
+      categories = snapshot.docs.map((doc) {
+        return {
+          'categoryID': doc['categoryID'],
+          'categoryName': doc['categoryName'],
+        };
+      }).toList();
+    });
+  }
+
+  Future<void> addItem() async {
+    if (_nameController.text.isEmpty ||
+        _priceController.text.isEmpty ||
+        selectedCategoryID == null) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text("Fill all required fields")));
+      return;
+    }
+
+    try {
+      await _firestore.runTransaction((transaction) async {
+        final counterRef = _firestore
+            .collection('ItemCounters')
+            .doc("GLOBAL_ITEM_COUNTER");
+
+        final counterSnapshot = await transaction.get(counterRef);
+
+        int newItemID = 1;
+
+        if (counterSnapshot.exists) {
+          final currentID = counterSnapshot['lastItemID'] ?? 0;
+          newItemID = currentID + 1;
+          transaction.update(counterRef, {'lastItemID': newItemID});
+        } else {
+          transaction.set(counterRef, {'lastItemID': newItemID});
+        }
+
+        final itemRef = _firestore.collection('AddItem').doc();
+
+        transaction.set(itemRef, {
+          'itemID': newItemID,
+          'itemName': _nameController.text.trim(),
+          'price': _priceController.text.trim(),
+          'description': _descriptionController.text.trim(),
+          'type': _isVeg ? "Veg" : (_isNonVeg ? "Non-Veg" : "Unknown"),
+          'categoryID': selectedCategoryID,
+          'categoryName': selectedCategoryName,
+          'hotelID': hotelID,
+          'available': "Yes",
+          'createdAt': Timestamp.now(),
+        });
+      });
+
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text("Item added successfully")));
+
+      Navigator.pop(context);
+    } catch (e) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text("Error: $e")));
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final screenWidth = MediaQuery.of(context).size.width;
 
     return Scaffold(
       backgroundColor: AppColors.primaryBackground,
-      body: Stack(
+      body: Column(
         children: [
-          Column(
-            children: [
-              const SizedBox(height: 25),
-              const CommonHeader(showSearchBar: false),
-              const SizedBox(height: 25),
-              Expanded(
-                child: Center(
-                  child: SingleChildScrollView(
-                    child: Container(
-                      width: screenWidth > 600 ? 500 : screenWidth * 0.9,
-                      padding: const EdgeInsets.all(24),
-                      decoration: BoxDecoration(
-                        color: AppColors.secondaryBackground,
-                        borderRadius: BorderRadius.circular(16),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withOpacity(0.3),
-                            blurRadius: 20,
-                            offset: const Offset(0, 5),
-                          ),
-                        ],
+          const SizedBox(height: 25),
+          const CommonHeader(showSearchBar: false),
+          Expanded(
+            child: Center(
+              child: SingleChildScrollView(
+                child: Container(
+                  width: screenWidth > 600 ? 500 : screenWidth * 0.9,
+                  padding: const EdgeInsets.all(24),
+                  decoration: BoxDecoration(
+                    color: AppColors.secondaryBackground,
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                  child: Column(
+                    children: [
+                      const Text(
+                        "Add Item",
+                        style: TextStyle(
+                          color: AppColors.whiteColor,
+                          fontSize: 24,
+                          fontWeight: FontWeight.bold,
+                        ),
                       ),
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          const Text(
-                            "Add Item",
-                            style: TextStyle(
-                              color: AppColors.whiteColor,
-                              fontSize: 24,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                          const SizedBox(height: 24),
+                      const SizedBox(height: 20),
 
-                          _inputField(
-                            controller: _nameController,
-                            label: "Item Name",
-                          ),
-                          const SizedBox(height: 16),
-                          _inputField(
-                            controller: _priceController,
-                            label: "Price",
-                            keyboardType: TextInputType.number,
-                          ),
-                          const SizedBox(height: 16),
-                          _inputField(
-                            controller: _descriptionController,
-                            label: "Description",
-                            maxLines: 3,
-                          ),
-                          const SizedBox(height: 16),
-
-                          // Image Picker
-                          GestureDetector(
-                            onTap: _pickImage,
-                            child: Container(
-                              height: 160,
-                              width: double.infinity,
-                              decoration: BoxDecoration(
-                                borderRadius: BorderRadius.circular(12),
-                                border: Border.all(
-                                  color: AppColors.LightGreyColor,
-                                ),
-                                color: Colors.black12,
+                      /// CATEGORY DROPDOWN
+                      DropdownButtonFormField<int>(
+                        dropdownColor: AppColors.secondaryBackground,
+                        value: selectedCategoryID,
+                        decoration: _inputDecoration("Select Category"),
+                        items: categories.map((cat) {
+                          return DropdownMenuItem<int>(
+                            value: cat['categoryID'],
+                            child: Text(
+                              cat['categoryName'],
+                              style: const TextStyle(
+                                color: AppColors.whiteColor,
                               ),
-                              child: _imageBytes == null
-                                  ? Column(
-                                      mainAxisAlignment:
-                                          MainAxisAlignment.center,
-                                      children: const [
-                                        Icon(
-                                          Icons.add_a_photo,
-                                          size: 40,
-                                          color: AppColors.LightGreyColor,
-                                        ),
-                                        SizedBox(height: 8),
-                                        Text(
-                                          "Upload Item Image",
-                                          style: TextStyle(
-                                            color: AppColors.LightGreyColor,
-                                          ),
-                                        ),
-                                      ],
-                                    )
-                                  : ClipRRect(
-                                      borderRadius: BorderRadius.circular(12),
-                                      child: Image.memory(
-                                        _imageBytes!,
-                                        fit: BoxFit.cover,
-                                        width: double.infinity,
+                            ),
+                          );
+                        }).toList(),
+                        onChanged: (val) {
+                          final selected = categories.firstWhere(
+                            (c) => c['categoryID'] == val,
+                          );
+                          setState(() {
+                            selectedCategoryID = val;
+                            selectedCategoryName = selected['categoryName'];
+                          });
+                        },
+                      ),
+
+                      const SizedBox(height: 16),
+                      _inputField(_nameController, "Item Name"),
+                      const SizedBox(height: 16),
+                      _inputField(
+                        _priceController,
+                        "Price",
+                        keyboardType: TextInputType.number,
+                      ),
+                      const SizedBox(height: 16),
+                      _inputField(
+                        _descriptionController,
+                        "Description",
+                        maxLines: 3,
+                      ),
+                      const SizedBox(height: 16),
+
+                      // Image Picker
+                      GestureDetector(
+                        onTap: _pickImage,
+                        child: Container(
+                          height: 160,
+                          width: double.infinity,
+                          decoration: BoxDecoration(
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(color: AppColors.LightGreyColor),
+                            color: Colors.black12,
+                          ),
+                          child: _imageBytes == null
+                              ? Column(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: const [
+                                    Icon(
+                                      Icons.add_a_photo,
+                                      size: 40,
+                                      color: AppColors.LightGreyColor,
+                                    ),
+                                    SizedBox(height: 8),
+                                    Text(
+                                      "Upload Item Image",
+                                      style: TextStyle(
+                                        color: AppColors.LightGreyColor,
                                       ),
                                     ),
-                            ),
-                          ),
+                                  ],
+                                )
+                              : ClipRRect(
+                                  borderRadius: BorderRadius.circular(12),
+                                  child: Image.memory(
+                                    _imageBytes!,
+                                    fit: BoxFit.cover,
+                                    width: double.infinity,
+                                  ),
+                                ),
+                        ),
+                      ),
 
-                          const SizedBox(height: 24),
+                      const SizedBox(height: 24),
 
-                          // Veg / Non-Veg checkboxes in a single row
+                      // Veg / Non-Veg checkboxes in a single row
+                      Row(
+                        children: [
                           Row(
                             children: [
-                              Row(
-                                children: [
-                                  Checkbox(
-                                    value: _isVeg,
-                                    onChanged: (val) {
-                                      setState(() {
-                                        _isVeg = val ?? false;
-                                        if (_isVeg) _isNonVeg = false;
-                                      });
-                                    },
-                                    activeColor: AppColors.OrangeColor,
-                                    checkColor: Colors.white,
-                                  ),
-                                  const SizedBox(width: 4),
-                                  const Text(
-                                    "Veg",
-                                    style: TextStyle(
-                                      color: AppColors.whiteColor,
-                                    ),
-                                  ),
-                                ],
+                              Checkbox(
+                                value: _isVeg,
+                                onChanged: (v) {
+                                  setState(() {
+                                    _isVeg = v!;
+                                    _isNonVeg = false;
+                                  });
+                                },
+                                activeColor: AppColors.OrangeColor,
+                                checkColor: Colors.white,
                               ),
-                              const SizedBox(
-                                width: 16,
-                              ), // space between Veg and Non-Veg
-                              Row(
-                                children: [
-                                  Checkbox(
-                                    value: _isNonVeg,
-                                    onChanged: (val) {
-                                      setState(() {
-                                        _isNonVeg = val ?? false;
-                                        if (_isNonVeg) _isVeg = false;
-                                      });
-                                    },
-                                    activeColor: AppColors.OrangeColor,
-                                    checkColor: Colors.white,
-                                  ),
-                                  const SizedBox(width: 4),
-                                  const Text(
-                                    "Non-Veg",
-                                    style: TextStyle(
-                                      color: AppColors.whiteColor,
-                                    ),
-                                  ),
-                                ],
+                              const SizedBox(width: 4),
+                              const Text(
+                                "Veg",
+                                style: TextStyle(color: AppColors.whiteColor),
                               ),
                             ],
                           ),
-
-                          const SizedBox(height: 16),
-
-                          // Add Button
-                          SizedBox(
-                            width: double.infinity,
-                            height: 48,
-                            child: ElevatedButton(
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: AppColors.OrangeColor,
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(12),
-                                ),
-                              ),
-                              onPressed: () {
-                                if (_nameController.text.isNotEmpty &&
-                                    _priceController.text.isNotEmpty &&
-                                    _descriptionController.text.isNotEmpty &&
-                                    _imageBytes != null) {
-                                  categories[widget.categoryIndex]["items"].add(
-                                    {
-                                      "name": _nameController.text,
-                                      "price": _priceController.text,
-                                      "description":
-                                          _descriptionController.text,
-                                      "image": _imageBytes,
-                                      "type": _isVeg
-                                          ? "Veg"
-                                          : (_isNonVeg ? "Non-Veg" : "Unknown"),
-                                    },
-                                  );
-                                  Navigator.pop(context);
-                                }
-                              },
-                              child: const Text(
-                                "Add Item",
-                                style: TextStyle(
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.bold,
-                                  color: AppColors.whiteColor,
-                                ),
-                              ),
-                            ),
+                          const SizedBox(width: 16),
+                          Checkbox(
+                            value: _isNonVeg,
+                            onChanged: (v) {
+                              setState(() {
+                                _isNonVeg = v!;
+                                _isVeg = false;
+                              });
+                            },
+                            activeColor: AppColors.OrangeColor,
+                            checkColor: Colors.white,
                           ),
-
-                          const SizedBox(height: 12),
-
-                          // View Items
-                          SizedBox(
-                            width: double.infinity,
-                            height: 48,
-                            child: OutlinedButton(
-                              style: OutlinedButton.styleFrom(
-                                side: const BorderSide(
-                                  color: AppColors.OrangeColor,
-                                ),
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(12),
-                                ),
-                              ),
-                              onPressed: () => Navigator.pop(context),
-                              child: const Text(
-                                "View Items",
-                                style: TextStyle(
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.bold,
-                                  color: AppColors.OrangeColor,
-                                ),
-                              ),
-                            ),
+                          const SizedBox(width: 4),
+                          const Text(
+                            "Non-Veg",
+                            style: TextStyle(color: AppColors.whiteColor),
                           ),
                         ],
                       ),
-                    ),
+
+                      const SizedBox(height: 20),
+                      SizedBox(
+                        width: double.infinity,
+                        height: 48,
+                        child: ElevatedButton(
+                          onPressed: addItem,
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: AppColors.OrangeColor,
+                          ),
+                          child: const Text(
+                            "Add Item",
+                            style: TextStyle(
+                              color: AppColors.whiteColor,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
                 ),
               ),
-            ],
+            ),
           ),
         ],
       ),
     );
   }
 
-  Widget _inputField({
-    required TextEditingController controller,
-    required String label,
+  InputDecoration _inputDecoration(String label) {
+    return InputDecoration(
+      labelText: label,
+      labelStyle: const TextStyle(color: AppColors.LightGreyColor),
+      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+      focusedBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(12),
+        borderSide: const BorderSide(color: AppColors.OrangeColor),
+      ),
+    );
+  }
+
+  Widget _inputField(
+    TextEditingController controller,
+    String label, {
     int maxLines = 1,
     TextInputType keyboardType = TextInputType.text,
   }) {
     return TextField(
-      style: const TextStyle(color: AppColors.whiteColor),
       controller: controller,
       maxLines: maxLines,
       keyboardType: keyboardType,
-      decoration: InputDecoration(
-        labelText: label,
-        labelStyle: const TextStyle(color: AppColors.LightGreyColor),
-        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-        focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: const BorderSide(color: AppColors.OrangeColor),
-        ),
-      ),
+      style: const TextStyle(color: AppColors.whiteColor),
+      decoration: _inputDecoration(label),
     );
   }
 }

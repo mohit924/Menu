@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:menu_scan_web/Admin_Pannel/ui/Category_List_Page.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:menu_scan_web/Admin_Pannel/widgets/common_header.dart';
 import 'package:menu_scan_web/Custom/App_colors.dart';
 
@@ -11,36 +11,64 @@ class AdminDashboardPage extends StatefulWidget {
 }
 
 class _AdminDashboardPageState extends State<AdminDashboardPage> {
-  final List<Map<String, dynamic>> categories = [
-    {
-      "name": "Starters",
-      "icon": Icons.fastfood,
-      "expanded": true,
-      "items": [
-        {
-          "name": "Spring Rolls Rolls Rolls Rolls Rolls Rolls",
-          "price": "₹100",
-          "show": true,
-        },
-        {"name": "Fried Momos", "price": "₹120", "show": true},
-        {"name": "Paneer Pakora", "price": "₹150", "show": true},
-        {"name": "Veg Cutlet", "price": "₹80", "show": true},
-      ],
-    },
-    {
-      "name": "Main Course",
-      "icon": Icons.restaurant,
-      "expanded": true,
-      "items": [
-        {"name": "Paneer Butter Masala", "price": "₹250", "show": true},
-        {"name": "Veg Biryani", "price": "₹200", "show": true},
-        {"name": "Dal Makhani", "price": "₹180", "show": true},
-        {"name": "Mixed Veg", "price": "₹220", "show": true},
-      ],
-    },
-  ];
-
+  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  List<Map<String, dynamic>> categories = [];
   String _searchQuery = '';
+
+  @override
+  void initState() {
+    super.initState();
+    fetchCategoriesAndItems();
+  }
+
+  Future<void> fetchCategoriesAndItems() async {
+    try {
+      // Fetch categories for hotel OPSY
+      final categorySnapshot = await _firestore
+          .collection('AddCategory')
+          .where('hotelID', isEqualTo: 'OPSY')
+          .get();
+
+      List<Map<String, dynamic>> tempCategories = [];
+
+      for (var catDoc in categorySnapshot.docs) {
+        final catData = catDoc.data();
+        final catID = catData['categoryID'];
+
+        // Fetch items for this category
+        final itemSnapshot = await _firestore
+            .collection('AddItem')
+            .where('hotelID', isEqualTo: 'OPSY')
+            .where('categoryID', isEqualTo: catID)
+            .get();
+
+        List<Map<String, dynamic>> items = itemSnapshot.docs.map((itemDoc) {
+          final itemData = itemDoc.data();
+          return {
+            "docId": itemDoc.id,
+            "name": itemData['itemName'] ?? '',
+            "price": "₹${itemData['price'] ?? ''}",
+            "available": (itemData['available'] ?? 'Yes') == 'Yes',
+          };
+        }).toList();
+
+        tempCategories.add({
+          "name": catData['categoryName'] ?? '',
+          "icon": Icons.fastfood,
+          "expanded": true,
+          "items": items,
+        });
+      }
+
+      setState(() {
+        categories = tempCategories;
+      });
+    } catch (e) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text("Error: $e")));
+    }
+  }
 
   List<Map<String, dynamic>> get filteredCategories {
     if (_searchQuery.isEmpty) return categories;
@@ -54,11 +82,22 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
                 ),
               )
               .toList();
-
           return {...category, "items": filteredItems};
         })
         .where((cat) => (cat["items"] as List).isNotEmpty)
         .toList();
+  }
+
+  Future<void> toggleAvailability(String docId, bool newValue) async {
+    try {
+      await _firestore.collection('AddItem').doc(docId).update({
+        'available': newValue ? 'Yes' : 'No',
+      });
+    } catch (e) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text("Error updating: $e")));
+    }
   }
 
   @override
@@ -70,9 +109,7 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
       backgroundColor: AppColors.primaryBackground,
       body: Column(
         children: [
-          // Fixed header at top
           const SizedBox(height: 25),
-
           CommonHeader(
             showSearchBar: true,
             onSearchChanged: (val) {
@@ -82,8 +119,6 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
             },
           ),
           const SizedBox(height: 16),
-
-          // Scrollable content
           Expanded(
             child: SingleChildScrollView(
               padding: const EdgeInsets.all(16),
@@ -160,6 +195,15 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
                                         child: ItemCard(
                                           item: item,
                                           isMobile: true,
+                                          onToggle: (val) {
+                                            setState(() {
+                                              item["available"] = val;
+                                            });
+                                            toggleAvailability(
+                                              item["docId"],
+                                              val,
+                                            );
+                                          },
                                         ),
                                       ),
                                     )
@@ -183,8 +227,14 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
 class ItemCard extends StatefulWidget {
   final Map<String, dynamic> item;
   final bool isMobile;
-  const ItemCard({Key? key, required this.item, required this.isMobile})
-    : super(key: key);
+  final Function(bool) onToggle;
+
+  const ItemCard({
+    Key? key,
+    required this.item,
+    required this.isMobile,
+    required this.onToggle,
+  }) : super(key: key);
 
   @override
   State<ItemCard> createState() => _ItemCardState();
@@ -202,7 +252,6 @@ class _ItemCardState extends State<ItemCard> {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.center,
         children: [
-          // Image
           ClipRRect(
             borderRadius: BorderRadius.circular(12),
             child: Image.asset(
@@ -213,14 +262,11 @@ class _ItemCardState extends State<ItemCard> {
             ),
           ),
           const SizedBox(width: 12),
-
-          // Text + Switch
           Expanded(
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.center,
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                // Text
                 Expanded(
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
@@ -247,16 +293,10 @@ class _ItemCardState extends State<ItemCard> {
                     ],
                   ),
                 ),
-
-                // Switch
                 Switch(
-                  value: widget.item["show"],
+                  value: widget.item["available"],
                   activeColor: AppColors.OrangeColor,
-                  onChanged: (val) {
-                    setState(() {
-                      widget.item["show"] = val;
-                    });
-                  },
+                  onChanged: widget.onToggle,
                 ),
               ],
             ),

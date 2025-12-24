@@ -47,15 +47,21 @@ import 'package:menu_scan_web/Customer/Screen_Ui/Menu_screen.dart';
 import 'package:menu_scan_web/firebase_options.dart';
 import 'dart:html' as html;
 
+import 'package:menu_scan_web/image_upload.dart';
+
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Firebase.initializeApp(options: DefaultFirebaseOptions.web);
+  final uri = Uri.parse(html.window.location.href);
+  final idFromQR = uri.queryParameters['id'] ?? 'unknown';
+
   html.window.history.pushState(null, '', html.window.location.href);
   html.window.onPopState.listen((event) {
     html.window.history.pushState(null, '', html.window.location.href);
   });
+  runApp(MyApp(idFromQR: idFromQR));
 
-  runApp(const MyApp(idFromQR: '2'));
+  // runApp(const MyApp(idFromQR: '2'));
 }
 
 class MyApp extends StatelessWidget {
@@ -69,7 +75,7 @@ class MyApp extends StatelessWidget {
       title: 'Name Collector',
       theme: ThemeData(primarySwatch: Colors.blue),
       debugShowCheckedModeBanner: false,
-      home: LoginPage(),
+      home: ImageUploadScreen(),
     );
   }
 }

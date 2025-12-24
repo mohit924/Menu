@@ -105,7 +105,7 @@ class HeaderMenuButtons extends StatelessWidget {
         const SizedBox(width: 24),
         _headerButton(context, "Category", const CategoryListPage()),
         const SizedBox(width: 24),
-        _headerButton(context, "Items", const ItemListPage(categoryIndex: 0)),
+        _headerButton(context, "Items", const ItemListPage()),
         const SizedBox(width: 24),
         _headerButton(context, "Enquirey", const ContactUsPage()),
       ],
@@ -146,11 +146,7 @@ class MobileMenuButton extends StatelessWidget {
           children: [
             _bottomSheetItem(context, "Dashboard", const AdminDashboardPage()),
             _bottomSheetItem(context, "Category", const CategoryListPage()),
-            _bottomSheetItem(
-              context,
-              "Items",
-              const ItemListPage(categoryIndex: 0),
-            ),
+            _bottomSheetItem(context, "Items", const ItemListPage()),
             _bottomSheetItem(context, "Contact", const ContactUsPage()),
             const SizedBox(height: 12),
           ],

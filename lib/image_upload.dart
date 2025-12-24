@@ -18,7 +18,7 @@ class _ImageUploadScreenState extends State<ImageUploadScreen> {
 
   // 👇 Paste your deployed Google Apps Script Web App URL here
   final String scriptUrl =
-      "https://script.google.com/macros/s/AKfycbwjfY2m8G5C1gyRE8WYvLSbbllJkPT5RyfwsqhY9MmPFXJZMOHRm95yYekRt-H8Vkw25w/exec";
+      "https://script.google.com/macros/s/AKfycby_AWMsZVpbwESY7nh_0VKqWkcPmnt6bvpqzSSZRdLUhBZ5vgTfkweWrITl5CH50EhZ/exec";
 
   void pickImage() {
     final uploadInput = html.FileUploadInputElement()..accept = 'image/*';

@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:menu_scan_web/Admin_Pannel/ui/Category_List_Page.dart';
 import 'package:menu_scan_web/Admin_Pannel/widgets/common_header.dart';
 import 'package:menu_scan_web/Custom/App_colors.dart';
 
@@ -31,7 +30,7 @@ class _AddCategoryPageState extends State<AddCategoryPage> {
       await _firestore.runTransaction((transaction) async {
         final counterDoc = _firestore
             .collection('CategoryCounters')
-            .doc(hotelID);
+            .doc("GLOBAL_CATEGORY_COUNTER");
 
         final counterSnapshot = await transaction.get(counterDoc);
         int newCategoryID = 1;

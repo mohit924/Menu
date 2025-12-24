@@ -1,8 +1,9 @@
 import 'dart:typed_data';
-
+import 'dart:html' as html;
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:menu_scan_web/Admin_Pannel/widgets/add_item_image.dart';
 import 'package:menu_scan_web/Admin_Pannel/widgets/common_header.dart';
 import 'package:menu_scan_web/Custom/App_colors.dart';
 
@@ -76,15 +77,21 @@ class _AddItemPageState extends State<AddItemPage> {
       return;
     }
 
+    if (_imageBytes == null) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text("Please select an image")));
+      return;
+    }
+
     try {
+      // 1️⃣ Get new itemID using a transaction
+      int newItemID = 1;
       await _firestore.runTransaction((transaction) async {
         final counterRef = _firestore
             .collection('ItemCounters')
             .doc("GLOBAL_ITEM_COUNTER");
-
         final counterSnapshot = await transaction.get(counterRef);
-
-        int newItemID = 1;
 
         if (counterSnapshot.exists) {
           final currentID = counterSnapshot['lastItemID'] ?? 0;
@@ -92,30 +99,41 @@ class _AddItemPageState extends State<AddItemPage> {
           transaction.update(counterRef, {'lastItemID': newItemID});
         } else {
           transaction.set(counterRef, {'lastItemID': newItemID});
+          newItemID = 1;
         }
+      });
 
-        final itemRef = _firestore.collection('AddItem').doc();
+      // 2️⃣ Upload image to Google Drive and get public URL
+      final blob = html.Blob([_imageBytes!]);
+      final file = html.File([blob], "item_image.png");
+      final imageUploader = ImageUploaderWidgetHelper();
+      final uploadedImageUrl = await imageUploader.uploadImage(
+        file,
+        newItemID.toString(),
+      );
 
-        transaction.set(itemRef, {
-          'itemID': newItemID,
-          'itemName': _nameController.text.trim(),
-          'price': _priceController.text.trim(),
-          'description': _descriptionController.text.trim(),
-          'type': _isVeg ? "Veg" : (_isNonVeg ? "Non-Veg" : "Unknown"),
-          'categoryID': selectedCategoryID,
-          'categoryName': selectedCategoryName,
-          'hotelID': hotelID,
-          'available': "Yes",
-          'createdAt': Timestamp.now(),
-        });
+      // 3️⃣ Save item data in Firestore WITH storing image URL
+      await _firestore.collection('AddItem').doc().set({
+        'itemID': newItemID,
+        'itemName': _nameController.text.trim(),
+        'price': _priceController.text.trim(),
+        'description': _descriptionController.text.trim(),
+        'type': _isVeg ? "Veg" : (_isNonVeg ? "Non-Veg" : "Unknown"),
+        'categoryID': selectedCategoryID,
+        'categoryName': selectedCategoryName,
+        'hotelID': hotelID,
+        'available': "Yes",
+        'createdAt': Timestamp.now(),
+        'imageUrl': uploadedImageUrl, // ✅ Store the public URL
       });
 
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(const SnackBar(content: Text("Item added successfully")));
-
       Navigator.pop(context);
-    } catch (e) {
+    } catch (e, stackTrace) {
+      debugPrint("Error adding item: $e");
+      debugPrintStack(stackTrace: stackTrace);
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(SnackBar(content: Text("Error: $e")));

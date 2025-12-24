@@ -47,8 +47,6 @@ import 'package:menu_scan_web/Customer/Screen_Ui/Menu_screen.dart';
 import 'package:menu_scan_web/firebase_options.dart';
 import 'dart:html' as html;
 
-import 'package:menu_scan_web/image_upload.dart';
-
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Firebase.initializeApp(options: DefaultFirebaseOptions.web);
@@ -75,7 +73,7 @@ class MyApp extends StatelessWidget {
       title: 'Name Collector',
       theme: ThemeData(primarySwatch: Colors.blue),
       debugShowCheckedModeBanner: false,
-      home: ImageUploadScreen(),
+      home: AdminDashboardPage(),
     );
   }
 }

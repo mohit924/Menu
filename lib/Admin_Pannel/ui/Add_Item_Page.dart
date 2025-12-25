@@ -1,11 +1,10 @@
 import 'dart:typed_data';
-import 'dart:html' as html;
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:image_picker/image_picker.dart';
-import 'package:menu_scan_web/Admin_Pannel/widgets/add_item_image.dart';
 import 'package:menu_scan_web/Admin_Pannel/widgets/common_header.dart';
 import 'package:menu_scan_web/Custom/App_colors.dart';
+import 'package:firebase_storage/firebase_storage.dart';
 
 class AddItemPage extends StatefulWidget {
   const AddItemPage({Key? key}) : super(key: key);
@@ -68,72 +67,108 @@ class _AddItemPageState extends State<AddItemPage> {
   }
 
   Future<void> addItem() async {
-    if (_nameController.text.isEmpty ||
-        _priceController.text.isEmpty ||
-        selectedCategoryID == null) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text("Fill all required fields")));
-      return;
-    }
-
-    if (_imageBytes == null) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text("Please select an image")));
-      return;
-    }
+    debugPrint("===== ADD ITEM CLICKED =====");
 
     try {
-      // 1️⃣ Get new itemID using a transaction
+      // 1️⃣ Validation
+      debugPrint("1️⃣ VALIDATING INPUTS...");
+      if (_nameController.text.isEmpty ||
+          _priceController.text.isEmpty ||
+          selectedCategoryID == null) {
+        debugPrint("❌ VALIDATION FAILED: Missing fields");
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text("Fill all required fields")),
+        );
+        return;
+      }
+
+      if (_imageBytes == null) {
+        debugPrint("❌ IMAGE IS NULL");
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text("Please select an image")));
+        return;
+      }
+
+      debugPrint("✅ VALIDATION PASSED");
+
+      // 2️⃣ Generate new item ID safely using Firestore transaction
+      debugPrint("2️⃣ GENERATING NEW ITEM ID...");
       int newItemID = 1;
       await _firestore.runTransaction((transaction) async {
         final counterRef = _firestore
             .collection('ItemCounters')
             .doc("GLOBAL_ITEM_COUNTER");
-        final counterSnapshot = await transaction.get(counterRef);
+        final snapshot = await transaction.get(counterRef);
 
-        if (counterSnapshot.exists) {
-          final currentID = counterSnapshot['lastItemID'] ?? 0;
-          newItemID = currentID + 1;
+        if (snapshot.exists) {
+          debugPrint("Counter exists, lastItemID: ${snapshot['lastItemID']}");
+          newItemID = (snapshot['lastItemID'] ?? 0) + 1;
           transaction.update(counterRef, {'lastItemID': newItemID});
+          debugPrint("Counter updated to $newItemID");
         } else {
-          transaction.set(counterRef, {'lastItemID': newItemID});
+          debugPrint(
+            "Counter does not exist, creating new counter with lastItemID = 1",
+          );
+          transaction.set(counterRef, {'lastItemID': 1});
           newItemID = 1;
         }
       });
+      debugPrint("✅ NEW ITEM ID GENERATED: $newItemID");
 
-      // 2️⃣ Upload image to Google Drive and get public URL
-      final blob = html.Blob([_imageBytes!]);
-      final file = html.File([blob], "item_image.png");
-      final imageUploader = ImageUploaderWidgetHelper();
-      final uploadedImageUrl = await imageUploader.uploadImage(
-        file,
-        newItemID.toString(),
+      // 3️⃣ Upload image to Firebase Storage (Web)
+      debugPrint("3️⃣ UPLOADING IMAGE TO FIREBASE STORAGE...");
+      final storageRef = FirebaseStorage.instance.ref().child(
+        'items/$newItemID.jpg',
       );
 
-      // 3️⃣ Save item data in Firestore WITH storing image URL
-      await _firestore.collection('AddItem').doc().set({
-        'itemID': newItemID,
-        'itemName': _nameController.text.trim(),
-        'price': _priceController.text.trim(),
-        'description': _descriptionController.text.trim(),
-        'type': _isVeg ? "Veg" : (_isNonVeg ? "Non-Veg" : "Unknown"),
-        'categoryID': selectedCategoryID,
-        'categoryName': selectedCategoryName,
-        'hotelID': hotelID,
-        'available': "Yes",
-        'createdAt': Timestamp.now(),
-        'imageUrl': uploadedImageUrl, // ✅ Store the public URL
-      });
+      try {
+        debugPrint("🔹 Creating UploadTask...");
+        UploadTask uploadTask = storageRef.putData(
+          _imageBytes!,
+          SettableMetadata(contentType: 'image/jpeg'),
+        );
 
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text("Item added successfully")));
-      Navigator.pop(context);
-    } catch (e, stackTrace) {
-      debugPrint("Error adding item: $e");
-      debugPrintStack(stackTrace: stackTrace);
+        debugPrint("🔹 UploadTask created, waiting for completion...");
+        TaskSnapshot snapshot = await uploadTask.whenComplete(
+          () => debugPrint("🔹 UploadTask complete"),
+        );
+
+        debugPrint("🔹 Retrieving download URL...");
+        final imageUrl = await snapshot.ref.getDownloadURL();
+        debugPrint("✅ IMAGE UPLOADED SUCCESSFULLY: $imageUrl");
+
+        // 4️⃣ Save item details to Firestore
+        debugPrint("4️⃣ SAVING ITEM DATA TO FIRESTORE...");
+        await _firestore.collection('AddItem').add({
+          'itemID': newItemID,
+          'itemName': _nameController.text.trim(),
+          'price': _priceController.text.trim(),
+          'description': _descriptionController.text.trim(),
+          'type': _isVeg ? "Veg" : (_isNonVeg ? "Non-Veg" : "Unknown"),
+          'categoryID': selectedCategoryID,
+          'categoryName': selectedCategoryName,
+          'hotelID': hotelID,
+          'available': "Yes",
+          'createdAt': Timestamp.now(),
+          'imageUrl': imageUrl,
+        });
+        debugPrint("✅ ITEM DATA SAVED TO FIRESTORE");
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text("Item added successfully")),
+        );
+        Navigator.pop(context);
+      } catch (uploadError, stackTrace) {
+        debugPrint("❌ IMAGE UPLOAD FAILED: $uploadError");
+        debugPrint("STACKTRACE: $stackTrace");
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text("Image upload failed: $uploadError")),
+        );
+      }
+    } catch (e, s) {
+      debugPrint("❌ ERROR OCCURRED: $e");
+      debugPrint("STACKTRACE: $s");
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(SnackBar(content: Text("Error: $e")));

@@ -1,7 +1,11 @@
+import 'dart:convert';
+
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:menu_scan_web/Customer/Widgets/Language_Bttom_Sheet%20.dart';
+import 'package:menu_scan_web/Customer/Widgets/item_model.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:shimmer/shimmer.dart'; // <<<< import shimmer
 import 'package:menu_scan_web/Custom/App_colors.dart';
 import 'package:menu_scan_web/Custom/BottomCartContainer.dart';
@@ -37,6 +41,7 @@ class _MenuScreenState extends State<MenuScreen> {
   String? _hotelName;
   bool _hotelLoading = true;
   final translator = GoogleTranslator();
+  Map<int, SelectedItem> selectedItems = {}; // key = itemID
 
   String selectedLangCode = "en";
   String selectedLangName = "English";
@@ -49,6 +54,23 @@ class _MenuScreenState extends State<MenuScreen> {
     super.initState();
     fetchCategoriesAndItems();
     _fetchHotelName();
+    _loadCartFromPrefs();
+  }
+
+  Future<void> _loadCartFromPrefs() async {
+    final prefs = await SharedPreferences.getInstance();
+    final String? cartData = prefs.getString('cart_items');
+    if (cartData != null) {
+      final List<dynamic> decoded = jsonDecode(cartData);
+      final Map<int, SelectedItem> loadedItems = {};
+
+      for (var itemMap in decoded) {
+        final item = SelectedItem.fromMap(Map<String, dynamic>.from(itemMap));
+        loadedItems[item.id] = item;
+      }
+
+      selectedItems = loadedItems; // just load, don't update buttonStates yet
+    }
   }
 
   Future<String> translateText(String text) async {
@@ -153,8 +175,6 @@ class _MenuScreenState extends State<MenuScreen> {
           final itemData = itemDoc.data();
           final id = itemData['itemID'] as int;
 
-          buttonStates[id] = {"isCompleted": false, "count": 0};
-
           final imagePath = itemData['imageUrl'] ?? '';
           _preloadImage(imagePath);
 
@@ -164,6 +184,17 @@ class _MenuScreenState extends State<MenuScreen> {
           final translatedName = await translateText(originalName);
           final translatedDesc = await translateText(originalDesc);
 
+          // Merge saved cart quantity
+          int savedCount = 0;
+          if (selectedItems.containsKey(id)) {
+            savedCount = selectedItems[id]!.quantity;
+          }
+
+          buttonStates[id] = {
+            "isCompleted": savedCount > 0,
+            "count": savedCount,
+          };
+
           items.add({
             "id": id,
             "name": translatedName,
@@ -171,13 +202,13 @@ class _MenuScreenState extends State<MenuScreen> {
             "price": "₹${itemData['price'] ?? ''}",
             "description": translatedDesc,
             "image": imagePath,
-            "category": translatedCategoryName, // ✅ translated category
+            "category": translatedCategoryName,
           });
         }
 
         if (items.isNotEmpty) {
           tempCategories.add({
-            "name": translatedCategoryName, // ✅ translated category
+            "name": translatedCategoryName,
             "expanded": true,
             "items": items,
           });
@@ -242,11 +273,32 @@ class _MenuScreenState extends State<MenuScreen> {
     );
   }
 
-  void _updateButtonState(int id, bool isCompleted, int count) {
+  void _updateButtonState(
+    int id,
+    bool isCompleted,
+    int count,
+    Map<String, dynamic> item,
+  ) async {
     setState(() {
       buttonStates[id]!["isCompleted"] = isCompleted;
       buttonStates[id]!["count"] = count;
     });
+
+    if (isCompleted && count > 0) {
+      selectedItems[id] = SelectedItem(
+        id: id,
+        name: item["name"],
+        price: item["price"],
+        quantity: count,
+      );
+    } else {
+      selectedItems.remove(id);
+    }
+
+    // Save to SharedPreferences
+    final prefs = await SharedPreferences.getInstance();
+    final itemsList = selectedItems.values.map((e) => e.toMap()).toList();
+    prefs.setString('cart_items', jsonEncode(itemsList));
   }
 
   void _scrollToCategory(String category) {
@@ -331,28 +383,25 @@ class _MenuScreenState extends State<MenuScreen> {
     return Scaffold(
       backgroundColor: AppColors.primaryBackground,
       appBar: AppBar(
-        centerTitle: true,
         backgroundColor: AppColors.primaryBackground,
         elevation: 2,
-        title: _hotelLoading
-            ? Shimmer.fromColors(
-                baseColor: Colors.grey.shade600,
-                highlightColor: Colors.grey.shade300,
-                child: Container(height: 16, width: 120, color: Colors.grey),
-              )
-            : Text(
-                _hotelName ?? 'Menu',
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: const TextStyle(
-                  color: AppColors.whiteColor,
-                  fontSize: 16,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
+        titleSpacing: 0, // start title from left
+        title: Container(
+          padding: const EdgeInsets.only(left: 16), // optional padding
+          child: Text(
+            _hotelName ?? 'Menu',
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+            style: const TextStyle(
+              color: AppColors.OrangeColor,
+              fontSize: 16,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ),
         actions: [
           IconButton(
-            icon: const Icon(Icons.language, color: AppColors.OrangeColor),
+            icon: const Icon(Icons.language, color: AppColors.whiteColor),
             onPressed: () {
               LanguageBottomSheet.show(
                 context: context,
@@ -364,7 +413,6 @@ class _MenuScreenState extends State<MenuScreen> {
                     selectedLangName = name;
                   });
 
-                  // Re-fetch or re-translate items
                   await fetchCategoriesAndItems();
 
                   ScaffoldMessenger.of(
@@ -374,9 +422,8 @@ class _MenuScreenState extends State<MenuScreen> {
               );
             },
           ),
-
           IconButton(
-            icon: const Icon(Icons.sort, color: AppColors.OrangeColor),
+            icon: const Icon(Icons.sort, color: AppColors.whiteColor),
             onPressed: () {
               CategoryBottomSheet.show(
                 context,
@@ -584,6 +631,7 @@ class _MenuScreenState extends State<MenuScreen> {
                                                                       id,
                                                                       newCompleted,
                                                                       newCount,
+                                                                      item,
                                                                     );
                                                                   },
                                                             ),

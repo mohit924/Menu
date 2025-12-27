@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:menu_scan_web/Admin_Pannel/ui/Dashboard.dart';
 import 'package:menu_scan_web/Admin_Pannel/ui/login.dart';
+import 'package:menu_scan_web/Admin_Pannel/widgets/Multi_Lang.dart';
 import 'package:menu_scan_web/Customer/Screen_Ui/Menu_screen.dart';
 import 'package:menu_scan_web/firebase_options.dart';
 import 'dart:html' as html;
@@ -14,11 +15,9 @@ void main() async {
 
   final uri = Uri.parse(html.window.location.href);
 
-  // Query parameters for customer QR
   final hotelID = uri.queryParameters['hotelID'];
   final tableID = uri.queryParameters['tableID'];
 
-  // Get saved hotelID from local storage (SharedPreferences)
   final prefs = await SharedPreferences.getInstance();
   final savedHotelID = prefs.getString('hotelID');
 
@@ -36,17 +35,14 @@ class MyApp extends StatelessWidget {
   Widget build(BuildContext context) {
     Widget home;
 
-    // Customer URL takes priority
     if (hotelID != null && tableID != null) {
       home = MenuScreen(hotelID: hotelID!, tableID: tableID!);
-    }
-    // Admin session fallback
-    else if (savedHotelID != null && savedHotelID!.isNotEmpty) {
+    } else if (savedHotelID != null && savedHotelID!.isNotEmpty) {
       home = AdminDashboardPage();
-    }
-    // Default login page
-    else {
-      home = const LoginPage();
+    } else {
+      // home = const LoginPage();
+      home = MenuScreen(hotelID: "UFKH", tableID: "2");
+      // home = ItemListPageLang();
     }
 
     return MaterialApp(

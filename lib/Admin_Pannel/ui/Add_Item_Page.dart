@@ -27,7 +27,7 @@ class _AddItemPageState extends State<AddItemPage> {
   Uint8List? _compressedBytes;
   final ImagePicker _picker = ImagePicker();
 
-  bool _isVeg = false;
+  bool _isVeg = true;
   bool _isNonVeg = false;
 
   String? hotelID;
@@ -60,19 +60,16 @@ class _AddItemPageState extends State<AddItemPage> {
       hotelID = savedHotelID;
     });
 
-    fetchCategories(); // 🔥 fetch only after hotelID is available
+    fetchCategories();
   }
 
   Future<void> fetchCategories() async {
-    if (hotelID == null) return; // ensure hotelID is loaded
+    if (hotelID == null) return;
 
     try {
       final snapshot = await _firestore
           .collection('AddCategory')
-          .where(
-            'hotelID',
-            isEqualTo: hotelID,
-          ) // 🔹 only categories for this hotel
+          .where('hotelID', isEqualTo: hotelID)
           .get();
 
       setState(() {

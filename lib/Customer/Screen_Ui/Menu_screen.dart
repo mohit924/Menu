@@ -274,12 +274,16 @@ class _MenuScreenState extends State<MenuScreen> {
                                         mainAxisAlignment:
                                             MainAxisAlignment.spaceBetween,
                                         children: [
-                                          Text(
-                                            categoryName,
-                                            style: const TextStyle(
-                                              fontSize: 18,
-                                              fontWeight: FontWeight.bold,
-                                              color: AppColors.LightGreyColor,
+                                          Expanded(
+                                            child: Text(
+                                              categoryName,
+                                              style: const TextStyle(
+                                                fontSize: 18,
+                                                fontWeight: FontWeight.bold,
+                                                color: AppColors.LightGreyColor,
+                                              ),
+                                              maxLines: 2,
+                                              overflow: TextOverflow.ellipsis,
                                             ),
                                           ),
                                           Icon(
@@ -295,136 +299,188 @@ class _MenuScreenState extends State<MenuScreen> {
                                   const SizedBox(height: 10),
                                   AnimatedCrossFade(
                                     firstChild: const SizedBox.shrink(),
-                                    secondChild: GridView.builder(
-                                      shrinkWrap: true,
-                                      physics:
-                                          const NeverScrollableScrollPhysics(),
-                                      itemCount: items.length,
-                                      gridDelegate:
-                                          const SliverGridDelegateWithFixedCrossAxisCount(
-                                            crossAxisCount: 2,
-                                            crossAxisSpacing: 10,
-                                            mainAxisSpacing: 10,
-                                            childAspectRatio: 0.9,
-                                          ),
-                                      itemBuilder: (context, index) {
-                                        final item = items[index];
-                                        final id = item["id"];
-                                        final state = buttonStates[id]!;
+                                    secondChild: LayoutBuilder(
+                                      builder: (context, constraints) {
+                                        // Use constraints.maxWidth to get available width inside the parent
+                                        double itemWidth =
+                                            (constraints.maxWidth - 10) /
+                                            2; // 2 per row, 10 spacing
 
-                                        return FutureBuilder<String?>(
-                                          future: _getImageUrl(item["image"]),
-                                          builder: (context, snapshot) {
-                                            final imageUrl = snapshot
-                                                .data; // ✅ store resolved URL
+                                        return Wrap(
+                                          spacing: 10, // horizontal spacing
+                                          runSpacing: 10, // vertical spacing
+                                          children: items.map((item) {
+                                            final id = item["id"];
+                                            final state = buttonStates[id]!;
 
-                                            return GestureDetector(
-                                              onTap: () => _showMenuBottomSheet(
-                                                item,
-                                                imageUrl,
-                                              ), // pass URL here
-                                              child: Card(
-                                                color:
-                                                    AppColors.primaryBackground,
-                                                elevation: 3,
-                                                shape: RoundedRectangleBorder(
-                                                  borderRadius:
-                                                      BorderRadius.circular(16),
+                                            return SizedBox(
+                                              width: itemWidth,
+                                              child: FutureBuilder<String?>(
+                                                future: _getImageUrl(
+                                                  item["image"],
                                                 ),
-                                                child: Padding(
-                                                  padding: const EdgeInsets.all(
-                                                    8,
-                                                  ),
-                                                  child: Column(
-                                                    crossAxisAlignment:
-                                                        CrossAxisAlignment
-                                                            .start,
-                                                    children: [
-                                                      Container(
-                                                        height: 120,
-                                                        child:
-                                                            snapshot.connectionState ==
-                                                                ConnectionState
-                                                                    .waiting
-                                                            ? Container(
-                                                                color: Colors
-                                                                    .grey[300],
-                                                              )
-                                                            : snapshot.hasError ||
-                                                                  snapshot.data ==
-                                                                      null
-                                                            ? Container(
-                                                                color: Colors
-                                                                    .grey[300],
-                                                                child:
-                                                                    const Icon(
-                                                                      Icons
-                                                                          .image,
-                                                                    ),
-                                                              )
-                                                            : Image.network(
-                                                                snapshot.data!,
-                                                                fit: BoxFit
-                                                                    .cover,
-                                                                width: double
-                                                                    .infinity,
-                                                              ),
-                                                      ),
-                                                      const SizedBox(height: 8),
-                                                      Text(
-                                                        item["name"],
-                                                        style: const TextStyle(
-                                                          fontSize: 16,
-                                                          fontWeight:
-                                                              FontWeight.bold,
-                                                          color: AppColors
-                                                              .LightGreyColor,
+                                                builder: (context, snapshot) {
+                                                  final imageUrl =
+                                                      snapshot.data;
+
+                                                  return GestureDetector(
+                                                    onTap: () =>
+                                                        _showMenuBottomSheet(
+                                                          item,
+                                                          imageUrl,
                                                         ),
-                                                        maxLines: 2,
-                                                        overflow: TextOverflow
-                                                            .ellipsis,
-                                                      ),
-                                                      const SizedBox(height: 4),
-                                                      Row(
-                                                        mainAxisAlignment:
-                                                            MainAxisAlignment
-                                                                .spaceBetween,
-                                                        children: [
-                                                          Text(
-                                                            item["price"],
-                                                            style: const TextStyle(
-                                                              color: AppColors
-                                                                  .OrangeColor,
-                                                              fontWeight:
-                                                                  FontWeight
-                                                                      .bold,
+                                                    child: Container(
+                                                      decoration: BoxDecoration(
+                                                        color: AppColors
+                                                            .primaryBackground,
+                                                        borderRadius:
+                                                            BorderRadius.circular(
+                                                              16,
                                                             ),
-                                                          ),
-                                                          ToggleAddButton(
-                                                            isCompleted:
-                                                                state["isCompleted"],
-                                                            count:
-                                                                state["count"],
-                                                            onChanged:
-                                                                (
-                                                                  newCompleted,
-                                                                  newCount,
-                                                                ) {
-                                                                  _updateButtonState(
-                                                                    id,
-                                                                    newCompleted,
-                                                                    newCount,
-                                                                  );
-                                                                },
+                                                        boxShadow: [
+                                                          BoxShadow(
+                                                            color: Colors.black
+                                                                .withOpacity(
+                                                                  0.05,
+                                                                ),
+                                                            blurRadius: 4,
+                                                            offset:
+                                                                const Offset(
+                                                                  0,
+                                                                  2,
+                                                                ),
                                                           ),
                                                         ],
                                                       ),
-                                                    ],
-                                                  ),
-                                                ),
+                                                      child: Column(
+                                                        crossAxisAlignment:
+                                                            CrossAxisAlignment
+                                                                .stretch,
+                                                        children: [
+                                                          // Image
+                                                          Container(
+                                                            height: 120,
+                                                            decoration: BoxDecoration(
+                                                              borderRadius:
+                                                                  const BorderRadius.vertical(
+                                                                    top:
+                                                                        Radius.circular(
+                                                                          16,
+                                                                        ),
+                                                                  ),
+                                                              color: Colors
+                                                                  .grey[300],
+                                                            ),
+                                                            child:
+                                                                snapshot.connectionState ==
+                                                                    ConnectionState
+                                                                        .waiting
+                                                                ? const SizedBox()
+                                                                : snapshot.hasError ||
+                                                                      snapshot.data ==
+                                                                          null
+                                                                ? const Icon(
+                                                                    Icons.image,
+                                                                    size: 50,
+                                                                  )
+                                                                : ClipRRect(
+                                                                    borderRadius:
+                                                                        const BorderRadius.vertical(
+                                                                          top: Radius.circular(
+                                                                            16,
+                                                                          ),
+                                                                        ),
+                                                                    child: Image.network(
+                                                                      imageUrl!,
+                                                                      fit: BoxFit
+                                                                          .cover,
+                                                                      width: double
+                                                                          .infinity,
+                                                                    ),
+                                                                  ),
+                                                          ),
+                                                          const SizedBox(
+                                                            height: 8,
+                                                          ),
+                                                          // Name
+                                                          Container(
+                                                            height:
+                                                                40, // approx height for 2 lines
+                                                            padding:
+                                                                const EdgeInsets.symmetric(
+                                                                  horizontal: 8,
+                                                                ),
+                                                            child: Text(
+                                                              item["name"],
+                                                              style: const TextStyle(
+                                                                fontSize: 16,
+                                                                fontWeight:
+                                                                    FontWeight
+                                                                        .bold,
+                                                                color: AppColors
+                                                                    .LightGreyColor,
+                                                              ),
+                                                              maxLines: 2,
+                                                              overflow:
+                                                                  TextOverflow
+                                                                      .ellipsis,
+                                                            ),
+                                                          ),
+                                                          const SizedBox(
+                                                            height: 4,
+                                                          ),
+                                                          // Row with price and button
+                                                          Padding(
+                                                            padding:
+                                                                const EdgeInsets.symmetric(
+                                                                  horizontal: 8,
+                                                                ),
+                                                            child: Row(
+                                                              mainAxisAlignment:
+                                                                  MainAxisAlignment
+                                                                      .spaceBetween,
+                                                              children: [
+                                                                Text(
+                                                                  item["price"],
+                                                                  style: const TextStyle(
+                                                                    color: AppColors
+                                                                        .OrangeColor,
+                                                                    fontWeight:
+                                                                        FontWeight
+                                                                            .bold,
+                                                                  ),
+                                                                ),
+                                                                ToggleAddButton(
+                                                                  isCompleted:
+                                                                      state["isCompleted"],
+                                                                  count:
+                                                                      state["count"],
+                                                                  onChanged:
+                                                                      (
+                                                                        newCompleted,
+                                                                        newCount,
+                                                                      ) {
+                                                                        _updateButtonState(
+                                                                          id,
+                                                                          newCompleted,
+                                                                          newCount,
+                                                                        );
+                                                                      },
+                                                                ),
+                                                              ],
+                                                            ),
+                                                          ),
+                                                          const SizedBox(
+                                                            height: 8,
+                                                          ),
+                                                        ],
+                                                      ),
+                                                    ),
+                                                  );
+                                                },
                                               ),
                                             );
-                                          },
+                                          }).toList(),
                                         );
                                       },
                                     ),

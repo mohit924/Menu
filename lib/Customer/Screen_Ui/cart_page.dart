@@ -55,10 +55,10 @@ class _CartPageState extends State<CartPage> {
         leading: IconButton(
           icon: const Icon(Icons.home, color: AppColors.whiteColor),
           onPressed: () {
-            Navigator.push(
-              context,
-              MaterialPageRoute(builder: (context) => MenuScreen()),
-            );
+            // Navigator.push(
+            //   context,
+            //   MaterialPageRoute(builder: (context) => MenuScreen()),
+            // );
           },
         ),
       ),

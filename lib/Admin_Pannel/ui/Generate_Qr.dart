@@ -1,10 +1,20 @@
+import 'dart:typed_data';
+import 'dart:ui' as ui;
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
+import 'package:flutter/rendering.dart';
 import 'package:pretty_qr_code/pretty_qr_code.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:menu_scan_web/Admin_Pannel/widgets/common_header.dart';
 import 'package:menu_scan_web/Custom/App_colors.dart';
+
+// Only import for mobile/desktop downloads
+import 'dart:io';
+import 'package:path_provider/path_provider.dart';
+
+// Only import for web downloads
+import 'dart:html' as html;
 
 class GenerateQr extends StatefulWidget {
   const GenerateQr({super.key});
@@ -17,6 +27,8 @@ class _GenerateQrState extends State<GenerateQr> {
   final String hotelID = "OPSY";
   final CollectionReference qrCollection = FirebaseFirestore.instance
       .collection('qrcodes');
+
+  final Map<String, GlobalKey> _qrKeys = {};
 
   Future<void> _generateQR() async {
     try {
@@ -67,6 +79,44 @@ class _GenerateQrState extends State<GenerateQr> {
     Share.share(url);
   }
 
+  Future<void> _downloadQrImage(String id, int tableId) async {
+    try {
+      final key = _qrKeys[id];
+      if (key == null) return;
+
+      final boundary =
+          key.currentContext?.findRenderObject() as RenderRepaintBoundary?;
+      if (boundary == null) return;
+
+      final image = await boundary.toImage(pixelRatio: 3.0);
+      final byteData = await image.toByteData(format: ui.ImageByteFormat.png);
+      final pngBytes = byteData!.buffer.asUint8List();
+
+      final fileName = 'Table_$tableId.png';
+
+      if (kIsWeb) {
+        final blob = html.Blob([pngBytes]);
+        final url = html.Url.createObjectUrlFromBlob(blob);
+        final anchor = html.AnchorElement(href: url)
+          ..setAttribute("download", fileName)
+          ..click();
+        html.Url.revokeObjectUrl(url);
+      } else {
+        final directory = await getApplicationDocumentsDirectory();
+        final file = File('${directory.path}/$fileName');
+        await file.writeAsBytes(pngBytes);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('QR code downloaded: ${file.path}')),
+        );
+      }
+    } catch (e) {
+      debugPrint("Error downloading QR: $e");
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Error downloading QR: $e')));
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final screenWidth = MediaQuery.of(context).size.width;
@@ -86,7 +136,7 @@ class _GenerateQrState extends State<GenerateQr> {
       body: Column(
         children: [
           const SizedBox(height: 25),
-          const CommonHeader(currentPage: "QR Codes", showSearchBar: false),
+          const CommonHeader(currentPage: "Generate Qr", showSearchBar: false),
           Expanded(
             child: StreamBuilder<QuerySnapshot>(
               stream: qrCollection
@@ -134,6 +184,9 @@ class _GenerateQrState extends State<GenerateQr> {
                         final url = doc['url'] ?? '';
                         final tableId = doc['tableID'] ?? 0;
 
+                        final qrKey = GlobalKey();
+                        _qrKeys[doc.id] = qrKey;
+
                         return Container(
                           width: cardWidth,
                           padding: const EdgeInsets.all(16),
@@ -149,74 +202,52 @@ class _GenerateQrState extends State<GenerateQr> {
                             ],
                           ),
                           child: Row(
+                            crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              PrettyQr(
-                                data: url,
-                                size: 80,
-                                elementColor: AppColors.whiteColor,
-                                roundEdges: true,
+                              RepaintBoundary(
+                                key: qrKey,
+                                child: PrettyQr(
+                                  data: url,
+                                  size: 80,
+                                  elementColor: AppColors.whiteColor,
+                                  roundEdges: true,
+                                ),
                               ),
                               const SizedBox(width: 16),
                               Expanded(
                                 child: Column(
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
-                                    RichText(
-                                      text: TextSpan(
-                                        children: [
-                                          const TextSpan(
-                                            text: 'Table ID: ',
-                                            style: TextStyle(
-                                              color: AppColors.whiteColor,
-                                              fontSize: 18,
-                                              fontWeight: FontWeight.w500,
-                                            ),
-                                          ),
-                                          TextSpan(
-                                            text: '$tableId',
-                                            style: const TextStyle(
-                                              color: AppColors.OrangeColor,
-                                              fontSize: 18,
-                                              fontWeight: FontWeight.w500,
-                                            ),
-                                          ),
-                                        ],
+                                    Text(
+                                      'Table ID: $tableId',
+                                      style: const TextStyle(
+                                        color: AppColors.whiteColor,
+                                        fontSize: 18,
+                                        fontWeight: FontWeight.w500,
                                       ),
                                     ),
-                                    const SizedBox(height: 4),
-                                    GestureDetector(
-                                      onTap: () {
-                                        Clipboard.setData(
-                                          ClipboardData(text: url),
-                                        );
-                                        ScaffoldMessenger.of(
-                                          context,
-                                        ).showSnackBar(
-                                          const SnackBar(
-                                            content: Text(
-                                              'URL copied to clipboard!',
-                                            ),
+                                    const SizedBox(height: 8),
+                                    Row(
+                                      children: [
+                                        IconButton(
+                                          icon: const Icon(
+                                            Icons.share,
+                                            color: AppColors.OrangeColor,
                                           ),
-                                        );
-                                      },
-                                      child: Text(
-                                        url,
-                                        style: const TextStyle(
-                                          color: AppColors.whiteColor,
-                                          fontSize: 14,
-                                          decoration: TextDecoration.underline,
+                                          onPressed: () => _shareQR(url),
                                         ),
-                                      ),
+                                        IconButton(
+                                          icon: const Icon(
+                                            Icons.download,
+                                            color: AppColors.OrangeColor,
+                                          ),
+                                          onPressed: () =>
+                                              _downloadQrImage(doc.id, tableId),
+                                        ),
+                                      ],
                                     ),
                                   ],
                                 ),
-                              ),
-                              IconButton(
-                                icon: const Icon(
-                                  Icons.share,
-                                  color: AppColors.OrangeColor,
-                                ),
-                                onPressed: () => _shareQR(url),
                               ),
                             ],
                           ),

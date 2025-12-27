@@ -8,7 +8,11 @@ import 'package:menu_scan_web/Customer/Widgets/Menu_Search_Bar.dart';
 import 'package:menu_scan_web/Customer/Widgets/show_Category_Sheet.dart';
 
 class MenuScreen extends StatefulWidget {
-  const MenuScreen({Key? key}) : super(key: key);
+  final String hotelID;
+  final String tableID;
+
+  const MenuScreen({Key? key, required this.hotelID, required this.tableID})
+    : super(key: key);
 
   @override
   State<MenuScreen> createState() => _MenuScreenState();
@@ -144,12 +148,31 @@ class _MenuScreenState extends State<MenuScreen> {
     return Scaffold(
       backgroundColor: AppColors.primaryBackground,
       appBar: AppBar(
-        title: Text(
-          "The Wood Fired Pizzeria Pizzeria Pizzeria",
-          style: const TextStyle(color: AppColors.whiteColor, fontSize: 16),
-          maxLines: 2,
-          overflow: TextOverflow.ellipsis,
-          textAlign: TextAlign.center,
+        title: Column(
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            Text(
+              "The Wood",
+              style: const TextStyle(
+                color: AppColors.whiteColor,
+                fontSize: 16,
+                fontWeight: FontWeight.w600,
+              ),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 2),
+            // Display hotelID and tableID
+            Text(
+              "Hotel ID: ${widget.hotelID} | Table ID: ${widget.tableID}",
+              style: const TextStyle(
+                color: AppColors.OrangeColor,
+                fontSize: 12,
+              ),
+              textAlign: TextAlign.center,
+            ),
+          ],
         ),
         centerTitle: true,
         backgroundColor: AppColors.primaryBackground,
@@ -164,6 +187,26 @@ class _MenuScreenState extends State<MenuScreen> {
         ],
       ),
 
+      // AppBar(
+      //   title: Text(
+      //     "The Wood ",
+      //     style: const TextStyle(color: AppColors.whiteColor, fontSize: 16),
+      //     maxLines: 2,
+      //     overflow: TextOverflow.ellipsis,
+      //     textAlign: TextAlign.center,
+      //   ),
+      //   centerTitle: true,
+      //   backgroundColor: AppColors.primaryBackground,
+      //   elevation: 2,
+      //   actions: [
+      //     IconButton(
+      //       icon: const Icon(Icons.menu, color: AppColors.whiteColor),
+      //       onPressed: () {
+      //         CategoryBottomSheet.show(context, categories, _scrollToCategory);
+      //       },
+      //     ),
+      //   ],
+      // ),
       body: Stack(
         children: [
           Column(

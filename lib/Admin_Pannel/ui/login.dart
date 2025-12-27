@@ -4,6 +4,7 @@ import 'package:menu_scan_web/Admin_Pannel/ui/Dashboard.dart';
 import 'package:menu_scan_web/Admin_Pannel/ui/forgot_password.dart';
 import 'package:menu_scan_web/Admin_Pannel/ui/sign_up.dart';
 import 'package:menu_scan_web/Custom/App_colors.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class LoginPage extends StatefulWidget {
   const LoginPage({Key? key}) : super(key: key);
@@ -30,7 +31,6 @@ class _LoginPageState extends State<LoginPage> {
     }
 
     try {
-      // Query Firestore for matching mobile and password
       final querySnapshot = await _firestore
           .collection('AdminSignUp')
           .where('phone', isEqualTo: mobile)
@@ -38,7 +38,13 @@ class _LoginPageState extends State<LoginPage> {
           .get();
 
       if (querySnapshot.docs.isNotEmpty) {
-        // Successful login
+        // Extract hotelID
+        final hotelID = querySnapshot.docs.first['hotelID'] ?? '';
+
+        // Save hotelID in shared preferences
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.setString('hotelID', hotelID);
+
         ScaffoldMessenger.of(
           context,
         ).showSnackBar(const SnackBar(content: Text("Login successful!")));
@@ -49,7 +55,6 @@ class _LoginPageState extends State<LoginPage> {
           MaterialPageRoute(builder: (_) => const AdminDashboardPage()),
         );
       } else {
-        // Invalid credentials
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text("Invalid mobile number or password")),
         );

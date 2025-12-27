@@ -6,6 +6,7 @@ import 'package:menu_scan_web/Admin_Pannel/ui/Generate_Qr.dart';
 import 'package:menu_scan_web/Admin_Pannel/ui/Item_List_Page.dart';
 import 'package:menu_scan_web/Admin_Pannel/ui/Update_Profile_Page.dart';
 import 'package:menu_scan_web/Custom/App_colors.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 class CommonHeader extends StatefulWidget {
   final double height;
@@ -13,7 +14,7 @@ class CommonHeader extends StatefulWidget {
   final double maxWidth;
   final bool showSearchBar;
   final ValueChanged<String>? onSearchChanged;
-  final String currentPage; // NEW: current active page
+  final String currentPage;
 
   const CommonHeader({
     Key? key,
@@ -22,7 +23,7 @@ class CommonHeader extends StatefulWidget {
     this.maxWidth = 1200,
     this.showSearchBar = false,
     this.onSearchChanged,
-    required this.currentPage, // require current page
+    required this.currentPage,
   }) : super(key: key);
 
   @override
@@ -98,16 +99,34 @@ class HeaderMenuButtons extends StatelessWidget {
         const SizedBox(width: 24),
         _headerButton(context, "Contact Us", const ContactUsPage()),
         const SizedBox(width: 24),
-        _headerButton(context, "Help", const ContactUsPage()),
+        _headerButton(
+          context,
+          "Help",
+          null,
+          url: "https://youtu.be/0MT5f6_cn7o?si=E_fVRJ40d-uO-Vpx",
+        ),
       ],
     );
   }
 
-  Widget _headerButton(BuildContext context, String text, Widget page) {
+  Widget _headerButton(
+    BuildContext context,
+    String text,
+    Widget? page, {
+    String? url,
+  }) {
     final isActive = text == currentPage;
     return InkWell(
-      onTap: () =>
-          Navigator.push(context, MaterialPageRoute(builder: (_) => page)),
+      onTap: () async {
+        if (url != null) {
+          final uri = Uri.parse(url);
+          if (await canLaunchUrl(uri)) {
+            await launchUrl(uri, mode: LaunchMode.externalApplication);
+          }
+        } else if (page != null) {
+          Navigator.push(context, MaterialPageRoute(builder: (_) => page));
+        }
+      },
       child: Text(
         text,
         style: TextStyle(
@@ -143,7 +162,12 @@ class MobileMenuButton extends StatelessWidget {
             _bottomSheetItem(context, "Items", const ItemListPage()),
             _bottomSheetItem(context, "Generate Qr", const GenerateQr()),
             _bottomSheetItem(context, "Contact", const ContactUsPage()),
-            _bottomSheetItem(context, "Help", const ContactUsPage()),
+            _bottomSheetItem(
+              context,
+              "Help",
+              null,
+              url: "https://youtu.be/0MT5f6_cn7o?si=E_fVRJ40d-uO-Vpx",
+            ),
             const SizedBox(height: 12),
           ],
         ),
@@ -151,7 +175,12 @@ class MobileMenuButton extends StatelessWidget {
     );
   }
 
-  Widget _bottomSheetItem(BuildContext context, String title, Widget page) {
+  Widget _bottomSheetItem(
+    BuildContext context,
+    String title,
+    Widget? page, {
+    String? url,
+  }) {
     final isActive = title == currentPage;
     return ListTile(
       title: Text(
@@ -162,9 +191,16 @@ class MobileMenuButton extends StatelessWidget {
           fontSize: 16,
         ),
       ),
-      onTap: () {
+      onTap: () async {
         Navigator.pop(context);
-        Navigator.push(context, MaterialPageRoute(builder: (_) => page));
+        if (url != null) {
+          final uri = Uri.parse(url);
+          if (await canLaunchUrl(uri)) {
+            await launchUrl(uri, mode: LaunchMode.externalApplication);
+          }
+        } else if (page != null) {
+          Navigator.push(context, MaterialPageRoute(builder: (_) => page));
+        }
       },
     );
   }

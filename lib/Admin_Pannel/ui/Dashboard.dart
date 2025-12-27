@@ -1,12 +1,9 @@
+import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:menu_scan_web/Admin_Pannel/widgets/common_header.dart';
 import 'package:menu_scan_web/Custom/App_colors.dart';
 import 'package:shimmer/shimmer.dart';
-import 'dart:typed_data';
-import 'dart:html' as html;
-import 'dart:convert';
-import 'package:http/http.dart' as http;
 
 class AdminDashboardPage extends StatefulWidget {
   const AdminDashboardPage({Key? key}) : super(key: key);
@@ -51,11 +48,13 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
           final itemData = itemDoc.data();
           return {
             "docId": itemDoc.id,
-            "itemID": itemData['itemID'], // ✅ Add this
+            "itemID": itemData['itemID'],
             "name": itemData['itemName'] ?? '',
             "price": "₹${itemData['price'] ?? ''}",
-            "available": (itemData['available'] ?? 'Yes') == 'Yes',
-            "imageUrl": itemData['imageUrl'], // ✅ Optional: for future use
+            "desc": "₹${itemData['description'] ?? ''}",
+            "available": itemData['available'] as bool? ?? true,
+
+            "imageUrl": itemData['imageUrl'],
           };
         }).toList();
 
@@ -98,7 +97,7 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
   Future<void> toggleAvailability(String docId, bool newValue) async {
     try {
       await _firestore.collection('AddItem').doc(docId).update({
-        'available': newValue ? 'Yes' : 'No',
+        'available': newValue,
       });
     } catch (e) {
       ScaffoldMessenger.of(
@@ -248,53 +247,37 @@ class ItemCard extends StatefulWidget {
 }
 
 class _ItemCardState extends State<ItemCard> {
-  Uint8List? imageBytes;
-  bool isLoading = true;
+  late Future<String?> _imageFuture;
 
   @override
   void initState() {
     super.initState();
-    _loadImage();
+    _imageFuture = _loadImageUrl();
   }
 
-  Future<void> _loadImage() async {
-    final itemId = widget.item["itemID"];
-
-    if (itemId == null) {
-      setState(() => isLoading = false);
-      return;
-    }
-
-    final deployUrl =
-        "https://script.google.com/macros/s/AKfycbwh--iJXZ8YR8-JmckTlIHqhMQ5vyZNsT8S9w-BoONhOgW3VDwiQM_lR6I-e7ZRza6W/exec?itemId=$itemId";
+  Future<String?> _loadImageUrl() async {
+    final String? path = widget.item['imageUrl'];
+    if (path == null || path.isEmpty) return null;
 
     try {
-      final response = await http.get(Uri.parse(deployUrl));
+      final storage = FirebaseStorage.instanceFor(
+        bucket: 'gs://menu-scan-web.firebasestorage.app',
+      );
 
-      if (response.statusCode == 200 &&
-          response.body != "NOT_FOUND" &&
-          !response.body.startsWith("Error")) {
-        final decoded = base64Decode(response.body);
-        setState(() {
-          imageBytes = decoded;
-          isLoading = false;
-        });
-      } else {
-        setState(() {
-          imageBytes = null;
-          isLoading = false;
-        });
-      }
+      final url = await storage.ref(path).getDownloadURL();
+
+      debugPrint("✅ Image loaded: $url");
+      return url;
     } catch (e) {
-      setState(() {
-        imageBytes = null;
-        isLoading = false;
-      });
+      debugPrint("❌ Image load failed ($path): $e");
+      return null;
     }
   }
 
   @override
   Widget build(BuildContext context) {
+    final item = widget.item;
+
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
@@ -302,70 +285,107 @@ class _ItemCardState extends State<ItemCard> {
         borderRadius: BorderRadius.circular(16),
       ),
       child: Row(
-        crossAxisAlignment: CrossAxisAlignment.center,
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          /// IMAGE / SHIMMER
+          // IMAGE / ICON
           ClipRRect(
             borderRadius: BorderRadius.circular(12),
             child: SizedBox(
               width: 100,
               height: 100,
-              child: isLoading
-                  ? Shimmer.fromColors(
+              child: FutureBuilder<String?>(
+                future: _imageFuture,
+                builder: (context, snapshot) {
+                  if (snapshot.connectionState == ConnectionState.waiting) {
+                    return Shimmer.fromColors(
                       baseColor: Colors.grey.shade800,
                       highlightColor: Colors.grey.shade600,
                       child: Container(color: Colors.grey),
-                    )
-                  : imageBytes != null
-                  ? Image.memory(imageBytes!, fit: BoxFit.cover)
-                  : Image.asset("assets/noodles.png", fit: BoxFit.cover),
+                    );
+                  } else if (snapshot.hasError || snapshot.data == null) {
+                    return const Center(
+                      child: Icon(
+                        Icons.fastfood,
+                        size: 50,
+                        color: AppColors.LightGreyColor,
+                      ),
+                    );
+                  } else {
+                    return Image.network(
+                      snapshot.data!,
+                      fit: BoxFit.cover,
+                      loadingBuilder: (context, child, progress) {
+                        if (progress == null) return child;
+                        return Shimmer.fromColors(
+                          baseColor: Colors.grey.shade800,
+                          highlightColor: Colors.grey.shade600,
+                          child: Container(color: Colors.grey),
+                        );
+                      },
+                      errorBuilder: (_, __, ___) => const Center(
+                        child: Icon(
+                          Icons.fastfood,
+                          size: 50,
+                          color: AppColors.LightGreyColor,
+                        ),
+                      ),
+                    );
+                  }
+                },
+              ),
             ),
           ),
 
           const SizedBox(width: 12),
 
-          /// DETAILS
+          // DETAILS + Switch
           Expanded(
             child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
+                // Text Column
                 Expanded(
                   child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
+                    mainAxisSize: MainAxisSize.min,
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        widget.item["name"],
+                        item["name"] ?? '',
                         style: const TextStyle(
                           color: AppColors.whiteColor,
                           fontWeight: FontWeight.bold,
                           fontSize: 16,
                         ),
-                        maxLines: 3,
+                        maxLines: 2,
                         overflow: TextOverflow.ellipsis,
-                      ),
-                      const SizedBox(height: 2),
-                      Text(
-                        'ID: ${widget.item["itemID"] ?? "null"}',
-                        style: const TextStyle(
-                          color: AppColors.whiteColor,
-                          fontSize: 12,
-                          fontStyle: FontStyle.italic,
-                        ),
                       ),
                       const SizedBox(height: 4),
                       Text(
-                        widget.item["price"] ?? "0",
+                        item["price"] ?? "0",
                         style: const TextStyle(
                           color: AppColors.OrangeColor,
                           fontSize: 14,
                         ),
                       ),
+                      const SizedBox(height: 4),
+                      Text(
+                        item["desc"] ?? "",
+                        style: const TextStyle(
+                          color: AppColors.whiteColor,
+                          fontSize: 12,
+                        ),
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                      ),
                     ],
                   ),
                 ),
+
+                const SizedBox(width: 8),
+
+                // Switch
                 Switch(
-                  value: widget.item["available"],
+                  value: item["available"],
                   activeColor: AppColors.OrangeColor,
                   onChanged: widget.onToggle,
                 ),

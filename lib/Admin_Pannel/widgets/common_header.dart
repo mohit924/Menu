@@ -47,14 +47,8 @@ class _CommonHeaderState extends State<CommonHeader> {
             children: [
               const SizedBox(width: 12),
 
-              // Menu icon
-              isDesktop
-                  ? const Icon(
-                      Icons.menu,
-                      color: AppColors.OrangeColor,
-                      size: 28,
-                    )
-                  : const MobileMenuButton(),
+              // Menu icon — show only on mobile
+              if (!isDesktop) const MobileMenuButton(),
 
               const SizedBox(width: 12),
 
@@ -69,7 +63,7 @@ class _CommonHeaderState extends State<CommonHeader> {
                 child: Padding(
                   padding: isDesktop
                       ? const EdgeInsets.symmetric(horizontal: 12)
-                      : EdgeInsets.zero, // mobile takes full space
+                      : EdgeInsets.zero,
                   child: SearchField(
                     controller: _controller,
                     onChanged: widget.onSearchChanged,
@@ -108,6 +102,8 @@ class HeaderMenuButtons extends StatelessWidget {
         _headerButton(context, "Items", const ItemListPage()),
         const SizedBox(width: 24),
         _headerButton(context, "Enquirey", const ContactUsPage()),
+        const SizedBox(width: 24),
+        _headerButton(context, "Help", const ContactUsPage()),
       ],
     );
   }

@@ -1,10 +1,12 @@
 import 'dart:typed_data';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:menu_scan_web/Admin_Pannel/widgets/common_header.dart';
 import 'package:menu_scan_web/Custom/App_colors.dart';
 import 'package:firebase_storage/firebase_storage.dart';
+import 'package:image/image.dart' as img;
 
 class AddItemPage extends StatefulWidget {
   const AddItemPage({Key? key}) : super(key: key);
@@ -21,9 +23,9 @@ class _AddItemPageState extends State<AddItemPage> {
   final TextEditingController _descriptionController = TextEditingController();
 
   Uint8List? _imageBytes;
+  Uint8List? _compressedBytes;
   final ImagePicker _picker = ImagePicker();
 
-  // Veg / Non-Veg state
   bool _isVeg = false;
   bool _isNonVeg = false;
 
@@ -40,22 +42,11 @@ class _AddItemPageState extends State<AddItemPage> {
     fetchCategories();
   }
 
-  Future<void> _pickImage() async {
-    final XFile? image = await _picker.pickImage(source: ImageSource.gallery);
-    if (image != null) {
-      final bytes = await image.readAsBytes();
-      setState(() {
-        _imageBytes = bytes;
-      });
-    }
-  }
-
   Future<void> fetchCategories() async {
     final snapshot = await _firestore
         .collection('AddCategory')
         .orderBy('categoryID')
         .get();
-
     setState(() {
       categories = snapshot.docs.map((doc) {
         return {
@@ -66,109 +57,91 @@ class _AddItemPageState extends State<AddItemPage> {
     });
   }
 
+  Uint8List compressImage(
+    Uint8List bytes, {
+    int maxWidth = 800,
+    int quality = 85,
+  }) {
+    final image = img.decodeImage(bytes)!;
+    final resized = img.copyResize(image, width: maxWidth);
+    return Uint8List.fromList(img.encodeJpg(resized, quality: quality));
+  }
+
+  Future<void> _pickImage() async {
+    final XFile? image = await _picker.pickImage(source: ImageSource.gallery);
+    if (image != null) {
+      final bytes = await image.readAsBytes();
+      setState(() {
+        _imageBytes = bytes;
+      });
+      // Don't compress here
+      _compressedBytes = null;
+    }
+  }
+
   Future<void> addItem() async {
-    debugPrint("===== ADD ITEM CLICKED =====");
+    if (_nameController.text.isEmpty ||
+        _priceController.text.isEmpty ||
+        selectedCategoryID == null ||
+        _imageBytes == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text("Fill all required fields and select an image"),
+        ),
+      );
+      return;
+    }
 
     try {
-      // 1️⃣ Validation
-      debugPrint("1️⃣ VALIDATING INPUTS...");
-      if (_nameController.text.isEmpty ||
-          _priceController.text.isEmpty ||
-          selectedCategoryID == null) {
-        debugPrint("❌ VALIDATION FAILED: Missing fields");
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text("Fill all required fields")),
-        );
-        return;
-      }
+      // Compress image here
+      final compressedBytes = compressImage(_imageBytes!);
 
-      if (_imageBytes == null) {
-        debugPrint("❌ IMAGE IS NULL");
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(const SnackBar(content: Text("Please select an image")));
-        return;
-      }
-
-      debugPrint("✅ VALIDATION PASSED");
-
-      // 2️⃣ Generate new item ID safely using Firestore transaction
-      debugPrint("2️⃣ GENERATING NEW ITEM ID...");
+      // Generate new item ID
       int newItemID = 1;
       await _firestore.runTransaction((transaction) async {
         final counterRef = _firestore
             .collection('ItemCounters')
             .doc("GLOBAL_ITEM_COUNTER");
         final snapshot = await transaction.get(counterRef);
-
         if (snapshot.exists) {
-          debugPrint("Counter exists, lastItemID: ${snapshot['lastItemID']}");
           newItemID = (snapshot['lastItemID'] ?? 0) + 1;
           transaction.update(counterRef, {'lastItemID': newItemID});
-          debugPrint("Counter updated to $newItemID");
         } else {
-          debugPrint(
-            "Counter does not exist, creating new counter with lastItemID = 1",
-          );
           transaction.set(counterRef, {'lastItemID': 1});
           newItemID = 1;
         }
       });
-      debugPrint("✅ NEW ITEM ID GENERATED: $newItemID");
 
-      // 3️⃣ Upload image to Firebase Storage (Web)
-      debugPrint("3️⃣ UPLOADING IMAGE TO FIREBASE STORAGE...");
+      // Upload image
       final storageRef = FirebaseStorage.instanceFor(
         bucket: 'gs://menu-scan-web.firebasestorage.app',
       ).ref().child('items/$newItemID.jpg');
 
-      try {
-        debugPrint("🔹 Creating UploadTask...");
-        UploadTask uploadTask = storageRef.putData(
-          _imageBytes!,
-          SettableMetadata(contentType: 'image/jpeg'),
-        );
+      await storageRef.putData(
+        compressedBytes,
+        SettableMetadata(contentType: 'image/jpeg'),
+      );
 
-        debugPrint("🔹 UploadTask created, waiting for completion...");
-        TaskSnapshot snapshot = await uploadTask.whenComplete(
-          () => debugPrint("🔹 UploadTask complete"),
-        );
+      // Save item details
+      await _firestore.collection('AddItem').add({
+        'itemID': newItemID,
+        'itemName': _nameController.text.trim(),
+        'price': _priceController.text.trim(),
+        'description': _descriptionController.text.trim(),
+        'type': _isVeg ? "Veg" : (_isNonVeg ? "Non-Veg" : "Veg"),
+        'categoryID': selectedCategoryID,
+        'categoryName': selectedCategoryName,
+        'hotelID': hotelID,
+        'available': true,
+        'createdAt': Timestamp.now(),
+        'imageUrl': 'items/$newItemID.jpg',
+      });
 
-        debugPrint("🔹 Retrieving download URL...");
-        final imageUrl = await snapshot.ref.getDownloadURL();
-        debugPrint("✅ IMAGE UPLOADED SUCCESSFULLY: $imageUrl");
-
-        // 4️⃣ Save item details to Firestore
-        debugPrint("4️⃣ SAVING ITEM DATA TO FIRESTORE...");
-        await _firestore.collection('AddItem').add({
-          'itemID': newItemID,
-          'itemName': _nameController.text.trim(),
-          'price': _priceController.text.trim(),
-          'description': _descriptionController.text.trim(),
-          'type': _isVeg ? "Veg" : (_isNonVeg ? "Non-Veg" : "Unknown"),
-          'categoryID': selectedCategoryID,
-          'categoryName': selectedCategoryName,
-          'hotelID': hotelID,
-          'available': "Yes",
-          'createdAt': Timestamp.now(),
-          'imageUrl': imageUrl,
-        });
-        debugPrint("✅ ITEM DATA SAVED TO FIRESTORE");
-
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text("Item added successfully")),
-        );
-        Navigator.pop(context);
-      } catch (uploadError, stackTrace) {
-        debugPrint("❌ IMAGE UPLOAD FAILED: $uploadError");
-        debugPrint("STACKTRACE: $stackTrace");
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text("Image upload failed: $uploadError")),
-        );
-      }
-    } catch (e, s) {
-      debugPrint("❌ ERROR OCCURRED: $e");
-      debugPrint("STACKTRACE: $s");
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text("Item added successfully")));
+      Navigator.pop(context);
+    } catch (e) {
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(SnackBar(content: Text("Error: $e")));
@@ -178,7 +151,6 @@ class _AddItemPageState extends State<AddItemPage> {
   @override
   Widget build(BuildContext context) {
     final screenWidth = MediaQuery.of(context).size.width;
-
     return Scaffold(
       backgroundColor: AppColors.primaryBackground,
       body: Column(
@@ -207,7 +179,6 @@ class _AddItemPageState extends State<AddItemPage> {
                       ),
                       const SizedBox(height: 20),
 
-                      /// CATEGORY DROPDOWN
                       DropdownButtonFormField<int>(
                         dropdownColor: AppColors.secondaryBackground,
                         value: selectedCategoryID,
@@ -250,7 +221,6 @@ class _AddItemPageState extends State<AddItemPage> {
                       ),
                       const SizedBox(height: 16),
 
-                      // Image Picker
                       GestureDetector(
                         onTap: _pickImage,
                         child: Container(
@@ -292,19 +262,16 @@ class _AddItemPageState extends State<AddItemPage> {
 
                       const SizedBox(height: 24),
 
-                      // Veg / Non-Veg checkboxes in a single row
                       Row(
                         children: [
                           Row(
                             children: [
                               Checkbox(
                                 value: _isVeg,
-                                onChanged: (v) {
-                                  setState(() {
-                                    _isVeg = v!;
-                                    _isNonVeg = false;
-                                  });
-                                },
+                                onChanged: (v) => setState(() {
+                                  _isVeg = v!;
+                                  _isNonVeg = false;
+                                }),
                                 activeColor: AppColors.OrangeColor,
                                 checkColor: Colors.white,
                               ),
@@ -316,21 +283,23 @@ class _AddItemPageState extends State<AddItemPage> {
                             ],
                           ),
                           const SizedBox(width: 16),
-                          Checkbox(
-                            value: _isNonVeg,
-                            onChanged: (v) {
-                              setState(() {
-                                _isNonVeg = v!;
-                                _isVeg = false;
-                              });
-                            },
-                            activeColor: AppColors.OrangeColor,
-                            checkColor: Colors.white,
-                          ),
-                          const SizedBox(width: 4),
-                          const Text(
-                            "Non-Veg",
-                            style: TextStyle(color: AppColors.whiteColor),
+                          Row(
+                            children: [
+                              Checkbox(
+                                value: _isNonVeg,
+                                onChanged: (v) => setState(() {
+                                  _isNonVeg = v!;
+                                  _isVeg = false;
+                                }),
+                                activeColor: AppColors.OrangeColor,
+                                checkColor: Colors.white,
+                              ),
+                              const SizedBox(width: 4),
+                              const Text(
+                                "Non-Veg",
+                                style: TextStyle(color: AppColors.whiteColor),
+                              ),
+                            ],
                           ),
                         ],
                       ),
@@ -364,30 +333,26 @@ class _AddItemPageState extends State<AddItemPage> {
     );
   }
 
-  InputDecoration _inputDecoration(String label) {
-    return InputDecoration(
-      labelText: label,
-      labelStyle: const TextStyle(color: AppColors.LightGreyColor),
-      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-      focusedBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(12),
-        borderSide: const BorderSide(color: AppColors.OrangeColor),
-      ),
-    );
-  }
+  InputDecoration _inputDecoration(String label) => InputDecoration(
+    labelText: label,
+    labelStyle: const TextStyle(color: AppColors.LightGreyColor),
+    border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+    focusedBorder: OutlineInputBorder(
+      borderRadius: BorderRadius.circular(12),
+      borderSide: const BorderSide(color: AppColors.OrangeColor),
+    ),
+  );
 
   Widget _inputField(
     TextEditingController controller,
     String label, {
     int maxLines = 1,
     TextInputType keyboardType = TextInputType.text,
-  }) {
-    return TextField(
-      controller: controller,
-      maxLines: maxLines,
-      keyboardType: keyboardType,
-      style: const TextStyle(color: AppColors.whiteColor),
-      decoration: _inputDecoration(label),
-    );
-  }
+  }) => TextField(
+    controller: controller,
+    maxLines: maxLines,
+    keyboardType: keyboardType,
+    style: const TextStyle(color: AppColors.whiteColor),
+    decoration: _inputDecoration(label),
+  );
 }

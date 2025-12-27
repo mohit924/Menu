@@ -1,4 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/material.dart';
 import 'package:menu_scan_web/Admin_Pannel/ui/Add_Category_Page.dart';
 import 'package:menu_scan_web/Admin_Pannel/ui/Edit_Category_Page.dart';
@@ -175,13 +176,125 @@ class _CategoryListPageState extends State<CategoryListPage> {
                                   ).then((_) => setState(() {}));
                                 }
                                 if (value == 'delete') {
-                                  await _firestore
-                                      .collection('AddCategory')
-                                      .doc(catDoc.id)
-                                      .delete();
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    const SnackBar(
-                                      content: Text("Category deleted"),
+                                  final categoryId = catDoc.id;
+
+                                  showDialog(
+                                    context: context,
+                                    builder: (_) => AlertDialog(
+                                      title: const Text("Delete Category"),
+                                      content: const Text(
+                                        "Are you sure you want to delete this category and all its items?",
+                                      ),
+                                      actions: [
+                                        TextButton(
+                                          onPressed: () =>
+                                              Navigator.pop(context),
+                                          child: const Text("Cancel"),
+                                        ),
+                                        TextButton(
+                                          onPressed: () async {
+                                            Navigator.pop(
+                                              context,
+                                            ); // close dialog
+
+                                            try {
+                                              // 1️⃣ Fetch all items under this category
+                                              final catNumberID =
+                                                  catDoc['categoryID'];
+                                              final itemsSnapshot =
+                                                  await _firestore
+                                                      .collection('AddItem')
+                                                      .where(
+                                                        'categoryID',
+                                                        isEqualTo:
+                                                            catDoc['categoryID'],
+                                                      ) // Use number
+                                                      .get();
+                                              debugPrint(
+                                                "Found ${itemsSnapshot.docs.length} item(s) under category $catNumberID",
+                                              );
+
+                                              debugPrint(
+                                                "Found ${itemsSnapshot.docs.length} item(s) under category $categoryId",
+                                              );
+
+                                              // 2️⃣ Delete all item images + Firestore docs sequentially
+                                              int deletedCount = 0;
+                                              for (var itemDoc
+                                                  in itemsSnapshot.docs) {
+                                                final itemId = itemDoc.id;
+                                                final imagePath =
+                                                    itemDoc['imageUrl'];
+                                                debugPrint(
+                                                  "Deleting item ID: $itemId, imagePath: $imagePath",
+                                                );
+
+                                                // Delete Firestore doc first
+                                                await itemDoc.reference
+                                                    .delete();
+                                                deletedCount++;
+
+                                                // Delete image from Firebase Storage
+                                                if (imagePath != null &&
+                                                    imagePath.isNotEmpty) {
+                                                  try {
+                                                    final storageRef =
+                                                        FirebaseStorage.instanceFor(
+                                                          bucket:
+                                                              'gs://menu-scan-web.firebasestorage.app',
+                                                        ).ref(imagePath);
+                                                    await storageRef.delete();
+                                                    debugPrint(
+                                                      "✅ Deleted image: $imagePath",
+                                                    );
+                                                  } catch (e) {
+                                                    debugPrint(
+                                                      "❌ Failed to delete image $imagePath: $e",
+                                                    );
+                                                  }
+                                                }
+                                              }
+
+                                              debugPrint(
+                                                "Deleted $deletedCount item(s) from category $categoryId",
+                                              );
+
+                                              // 3️⃣ Delete the category document
+                                              await _firestore
+                                                  .collection('AddCategory')
+                                                  .doc(categoryId)
+                                                  .delete();
+
+                                              ScaffoldMessenger.of(
+                                                context,
+                                              ).showSnackBar(
+                                                const SnackBar(
+                                                  content: Text(
+                                                    "Category and all items deleted",
+                                                  ),
+                                                ),
+                                              );
+                                            } catch (e) {
+                                              debugPrint(
+                                                "Error deleting category: $e",
+                                              );
+                                              ScaffoldMessenger.of(
+                                                context,
+                                              ).showSnackBar(
+                                                SnackBar(
+                                                  content: Text(
+                                                    "Error deleting category: $e",
+                                                  ),
+                                                ),
+                                              );
+                                            }
+                                          },
+                                          child: const Text(
+                                            "Delete",
+                                            style: TextStyle(color: Colors.red),
+                                          ),
+                                        ),
+                                      ],
                                     ),
                                   );
                                 }

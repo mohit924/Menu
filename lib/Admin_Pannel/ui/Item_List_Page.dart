@@ -1,3 +1,4 @@
+import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:menu_scan_web/Admin_Pannel/ui/Add_Item_Page.dart';
@@ -158,7 +159,7 @@ class _ItemListPageState extends State<ItemListPage> {
                                     ),
                                   ),
                                 ],
-                                onSelected: (value) {
+                                onSelected: (value) async {
                                   if (value == 'edit') {
                                     Navigator.push(
                                       context,
@@ -171,14 +172,39 @@ class _ItemListPageState extends State<ItemListPage> {
                                           categoryID: data['categoryID'],
                                           categoryName: data['categoryName'],
                                           type: data['type'],
+                                          image: data['imageUrl'],
                                         ),
                                       ),
                                     );
                                   } else if (value == 'delete') {
-                                    FirebaseFirestore.instance
+                                    final imagePath =
+                                        data['imageUrl']; // e.g., 'items/1.jpg'
+
+                                    // Delete Firestore doc first
+                                    await FirebaseFirestore.instance
                                         .collection('AddItem')
                                         .doc(doc.id)
                                         .delete();
+
+                                    // Delete image from Firebase Storage
+                                    if (imagePath != null &&
+                                        imagePath.isNotEmpty) {
+                                      try {
+                                        final storageRef =
+                                            FirebaseStorage.instanceFor(
+                                              bucket:
+                                                  'gs://menu-scan-web.firebasestorage.app',
+                                            ).ref(imagePath);
+                                        await storageRef.delete();
+                                        debugPrint(
+                                          "✅ Deleted image: $imagePath",
+                                        );
+                                      } catch (e) {
+                                        debugPrint(
+                                          "❌ Failed to delete image: $e",
+                                        );
+                                      }
+                                    }
                                   }
                                 },
                               ),

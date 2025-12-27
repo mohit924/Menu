@@ -1,5 +1,5 @@
 import 'dart:typed_data';
-
+import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:image_picker/image_picker.dart';
@@ -14,6 +14,7 @@ class EditItemPage extends StatefulWidget {
   final int categoryID;
   final String categoryName;
   final String type; // "Veg" or "Non-Veg"
+  final String image;
 
   const EditItemPage({
     Key? key,
@@ -24,6 +25,7 @@ class EditItemPage extends StatefulWidget {
     required this.categoryID,
     required this.categoryName,
     required this.type,
+    required this.image,
   }) : super(key: key);
 
   @override
@@ -36,6 +38,7 @@ class _EditItemPageState extends State<EditItemPage> {
   late TextEditingController _nameController;
   late TextEditingController _priceController;
   late TextEditingController _descriptionController;
+  late Future<String?> _imageFuture;
 
   int? selectedCategoryID;
   String? selectedCategoryName;
@@ -60,7 +63,21 @@ class _EditItemPageState extends State<EditItemPage> {
     _isVeg = widget.type == "Veg";
     _isNonVeg = widget.type == "Non-Veg";
 
+    _imageFuture = _loadImageUrl(widget.image);
     fetchCategories();
+  }
+
+  Future<String?> _loadImageUrl(String? fileName) async {
+    if (fileName == null || fileName.isEmpty) return null;
+    try {
+      final url = await FirebaseStorage.instanceFor(
+        bucket: 'gs://menu-scan-web.firebasestorage.app',
+      ).ref(fileName).getDownloadURL();
+      return url;
+    } catch (e) {
+      debugPrint("Failed to load image: $e");
+      return null;
+    }
   }
 
   Future<void> _pickImage() async {
@@ -99,6 +116,18 @@ class _EditItemPageState extends State<EditItemPage> {
     }
 
     try {
+      String? imagePath = widget.image;
+
+      // Upload new image if picked
+      if (_imageBytes != null) {
+        final ref = FirebaseStorage.instanceFor(
+          bucket: 'gs://menu-scan-web.firebasestorage.app',
+        ).ref('items/${widget.itemDocId}.png');
+
+        await ref.putData(_imageBytes!);
+        imagePath = ref.fullPath;
+      }
+
       await _firestore.collection('AddItem').doc(widget.itemDocId).update({
         'itemName': _nameController.text.trim(),
         'price': _priceController.text.trim(),
@@ -106,7 +135,8 @@ class _EditItemPageState extends State<EditItemPage> {
         'categoryID': selectedCategoryID,
         'categoryName': selectedCategoryName,
         'type': _isVeg ? "Veg" : (_isNonVeg ? "Non-Veg" : "Unknown"),
-        'available': "Yes",
+        'available': true,
+        'imageUrl': imagePath,
       });
 
       ScaffoldMessenger.of(context).showSnackBar(
@@ -155,7 +185,7 @@ class _EditItemPageState extends State<EditItemPage> {
                       ),
                       const SizedBox(height: 24),
 
-                      /// CATEGORY DROPDOWN
+                      // CATEGORY DROPDOWN
                       DropdownButtonFormField<int>(
                         dropdownColor: AppColors.secondaryBackground,
                         value: selectedCategoryID,
@@ -181,7 +211,6 @@ class _EditItemPageState extends State<EditItemPage> {
                           });
                         },
                       ),
-
                       const SizedBox(height: 16),
                       _inputField(_nameController, "Item Name"),
                       const SizedBox(height: 16),
@@ -198,7 +227,7 @@ class _EditItemPageState extends State<EditItemPage> {
                       ),
                       const SizedBox(height: 16),
 
-                      // Image Picker
+                      // IMAGE PICKER + DISPLAY
                       GestureDetector(
                         onTap: _pickImage,
                         child: Container(
@@ -209,37 +238,62 @@ class _EditItemPageState extends State<EditItemPage> {
                             border: Border.all(color: AppColors.LightGreyColor),
                             color: Colors.black12,
                           ),
-                          child: _imageBytes == null
-                              ? Column(
-                                  mainAxisAlignment: MainAxisAlignment.center,
-                                  children: const [
-                                    Icon(
-                                      Icons.add_a_photo,
-                                      size: 40,
-                                      color: AppColors.LightGreyColor,
-                                    ),
-                                    SizedBox(height: 8),
-                                    Text(
-                                      "Upload Item Image",
-                                      style: TextStyle(
-                                        color: AppColors.LightGreyColor,
-                                      ),
-                                    ),
-                                  ],
-                                )
-                              : ClipRRect(
+                          child: _imageBytes != null
+                              ? ClipRRect(
                                   borderRadius: BorderRadius.circular(12),
                                   child: Image.memory(
                                     _imageBytes!,
                                     fit: BoxFit.cover,
                                     width: double.infinity,
+                                    height: 160,
                                   ),
+                                )
+                              : FutureBuilder<String?>(
+                                  future: _imageFuture,
+                                  builder: (context, snapshot) {
+                                    if (snapshot.connectionState ==
+                                        ConnectionState.waiting) {
+                                      return Container(
+                                        color: Colors.grey.shade800,
+                                      );
+                                    } else if (snapshot.hasError ||
+                                        snapshot.data == null) {
+                                      return Column(
+                                        mainAxisAlignment:
+                                            MainAxisAlignment.center,
+                                        children: const [
+                                          Icon(
+                                            Icons.add_a_photo,
+                                            size: 40,
+                                            color: AppColors.LightGreyColor,
+                                          ),
+                                          SizedBox(height: 8),
+                                          Text(
+                                            "Upload Item Image",
+                                            style: TextStyle(
+                                              color: AppColors.LightGreyColor,
+                                            ),
+                                          ),
+                                        ],
+                                      );
+                                    } else {
+                                      return ClipRRect(
+                                        borderRadius: BorderRadius.circular(12),
+                                        child: Image.network(
+                                          snapshot.data!,
+                                          fit: BoxFit.cover,
+                                          width: double.infinity,
+                                          height: 160,
+                                        ),
+                                      );
+                                    }
+                                  },
                                 ),
                         ),
                       ),
                       const SizedBox(height: 24),
 
-                      // Veg / Non-Veg checkboxes inline
+                      // Veg / Non-Veg
                       Row(
                         children: [
                           Row(
@@ -285,7 +339,6 @@ class _EditItemPageState extends State<EditItemPage> {
                           ),
                         ],
                       ),
-
                       const SizedBox(height: 24),
 
                       // Update Button
@@ -310,7 +363,6 @@ class _EditItemPageState extends State<EditItemPage> {
                           ),
                         ),
                       ),
-
                       const SizedBox(height: 12),
 
                       // Cancel Button

@@ -36,13 +36,16 @@ class MyApp extends StatelessWidget {
   Widget build(BuildContext context) {
     Widget home;
 
-    if (savedHotelID != null && savedHotelID!.isNotEmpty) {
-      home = AdminDashboardPage();
-    } else if (hotelID != null && tableID != null) {
+    // Customer URL takes priority
+    if (hotelID != null && tableID != null) {
       home = MenuScreen(hotelID: hotelID!, tableID: tableID!);
-    } else {
-      // home = MenuScreen(hotelID: "UFKH", tableID: "2");
-
+    }
+    // Admin session fallback
+    else if (savedHotelID != null && savedHotelID!.isNotEmpty) {
+      home = AdminDashboardPage();
+    }
+    // Default login page
+    else {
       home = const LoginPage();
     }
 

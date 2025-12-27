@@ -3,6 +3,7 @@ import 'dart:ui' as ui;
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
+import 'package:menu_scan_web/Admin_Pannel/ui/login.dart';
 import 'package:pretty_qr_code/pretty_qr_code.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:share_plus/share_plus.dart';
@@ -16,6 +17,8 @@ import 'package:path_provider/path_provider.dart';
 // Only import for web downloads
 import 'dart:html' as html;
 
+import 'package:shared_preferences/shared_preferences.dart';
+
 class GenerateQr extends StatefulWidget {
   const GenerateQr({super.key});
 
@@ -24,11 +27,35 @@ class GenerateQr extends StatefulWidget {
 }
 
 class _GenerateQrState extends State<GenerateQr> {
-  final String hotelID = "OPSY";
+  String? hotelID;
+
   final CollectionReference qrCollection = FirebaseFirestore.instance
       .collection('qrcodes');
 
   final Map<String, GlobalKey> _qrKeys = {};
+
+  @override
+  void initState() {
+    super.initState();
+    _loadHotelID();
+  }
+
+  Future<void> _loadHotelID() async {
+    final prefs = await SharedPreferences.getInstance();
+    final savedHotelID = prefs.getString('hotelID');
+
+    if (savedHotelID == null || savedHotelID.isEmpty) {
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (_) => const LoginPage()),
+      );
+      return;
+    }
+
+    setState(() {
+      hotelID = savedHotelID;
+    });
+  }
 
   Future<void> _generateQR() async {
     try {

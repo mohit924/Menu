@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:menu_scan_web/Admin_Pannel/widgets/common_header.dart';
 import 'package:menu_scan_web/Custom/App_colors.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:shimmer/shimmer.dart';
 
 class AdminDashboardPage extends StatefulWidget {
@@ -16,19 +17,42 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   List<Map<String, dynamic>> categories = [];
   String _searchQuery = '';
+  String? hotelID;
 
   @override
   void initState() {
     super.initState();
+    _loadHotelID();
     fetchCategoriesAndItems();
+  }
+
+  Future<void> _loadHotelID() async {
+    final prefs = await SharedPreferences.getInstance();
+    final savedHotelID = prefs.getString('hotelID');
+
+    if (savedHotelID == null || savedHotelID.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Session expired. Please login again.")),
+      );
+      return;
+    }
+
+    setState(() {
+      hotelID = savedHotelID;
+    });
+
+    // Only fetch categories for this specific hotel
+    await fetchCategoriesAndItems();
   }
 
   Future<void> fetchCategoriesAndItems() async {
     try {
-      // Fetch categories for hotel OPSY
+      if (hotelID == null) return;
+
+      // Fetch categories only for the logged-in hotel
       final categorySnapshot = await _firestore
           .collection('AddCategory')
-          .where('hotelID', isEqualTo: 'OPSY')
+          .where('hotelID', isEqualTo: hotelID)
           .get();
 
       List<Map<String, dynamic>> tempCategories = [];
@@ -37,10 +61,10 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
         final catData = catDoc.data();
         final catID = catData['categoryID'];
 
-        // Fetch items for this category
+        // Fetch items for this category & hotel
         final itemSnapshot = await _firestore
             .collection('AddItem')
-            .where('hotelID', isEqualTo: 'OPSY')
+            .where('hotelID', isEqualTo: hotelID)
             .where('categoryID', isEqualTo: catID)
             .get();
 
@@ -51,9 +75,8 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
             "itemID": itemData['itemID'],
             "name": itemData['itemName'] ?? '',
             "price": "₹${itemData['price'] ?? ''}",
-            "desc": "₹${itemData['description'] ?? ''}",
+            "desc": itemData['description'] ?? '',
             "available": itemData['available'] as bool? ?? true,
-
             "imageUrl": itemData['imageUrl'],
           };
         }).toList();

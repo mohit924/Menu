@@ -7,6 +7,7 @@ import 'package:menu_scan_web/Admin_Pannel/widgets/common_header.dart';
 import 'package:menu_scan_web/Custom/App_colors.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:image/image.dart' as img;
+import 'package:shared_preferences/shared_preferences.dart';
 
 class AddItemPage extends StatefulWidget {
   const AddItemPage({Key? key}) : super(key: key);
@@ -29,7 +30,7 @@ class _AddItemPageState extends State<AddItemPage> {
   bool _isVeg = false;
   bool _isNonVeg = false;
 
-  String hotelID = "OPSY";
+  String? hotelID;
 
   int? selectedCategoryID;
   String? selectedCategoryName;
@@ -40,21 +41,53 @@ class _AddItemPageState extends State<AddItemPage> {
   void initState() {
     super.initState();
     fetchCategories();
+    _loadHotelID();
+  }
+
+  Future<void> _loadHotelID() async {
+    final prefs = await SharedPreferences.getInstance();
+    final savedHotelID = prefs.getString('hotelID');
+
+    if (savedHotelID == null || savedHotelID.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Session expired. Please login again")),
+      );
+      Navigator.pop(context);
+      return;
+    }
+
+    setState(() {
+      hotelID = savedHotelID;
+    });
+
+    fetchCategories(); // 🔥 fetch only after hotelID is available
   }
 
   Future<void> fetchCategories() async {
-    final snapshot = await _firestore
-        .collection('AddCategory')
-        .orderBy('categoryID')
-        .get();
-    setState(() {
-      categories = snapshot.docs.map((doc) {
-        return {
-          'categoryID': doc['categoryID'],
-          'categoryName': doc['categoryName'],
-        };
-      }).toList();
-    });
+    if (hotelID == null) return; // ensure hotelID is loaded
+
+    try {
+      final snapshot = await _firestore
+          .collection('AddCategory')
+          .where(
+            'hotelID',
+            isEqualTo: hotelID,
+          ) // 🔹 only categories for this hotel
+          .get();
+
+      setState(() {
+        categories = snapshot.docs.map((doc) {
+          return {
+            'categoryID': doc['categoryID'],
+            'categoryName': doc['categoryName'],
+          };
+        }).toList();
+      });
+    } catch (e) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text("Error fetching categories: $e")));
+    }
   }
 
   Uint8List compressImage(
@@ -80,6 +113,13 @@ class _AddItemPageState extends State<AddItemPage> {
   }
 
   Future<void> addItem() async {
+    if (hotelID == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Hotel not found. Please login again")),
+      );
+      return;
+    }
+
     if (_nameController.text.isEmpty ||
         _priceController.text.isEmpty ||
         selectedCategoryID == null ||

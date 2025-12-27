@@ -40,10 +40,12 @@
 import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
+import 'package:menu_scan_web/Admin_Pannel/ui/Dashboard.dart';
 import 'package:menu_scan_web/Admin_Pannel/ui/login.dart';
 import 'package:menu_scan_web/Customer/Screen_Ui/Menu_screen.dart';
 import 'package:menu_scan_web/firebase_options.dart';
 import 'dart:html' as html;
+import 'package:shared_preferences/shared_preferences.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -59,28 +61,47 @@ void main() async {
   // Path segments to detect /admin
   final isAdmin = uri.pathSegments.contains('admin');
 
-  runApp(MyApp(hotelID: hotelID, tableID: tableID, isAdmin: isAdmin));
+  // Check if admin is already logged in
+  final prefs = await SharedPreferences.getInstance();
+  final savedHotelID = prefs.getString('hotelID');
+
+  runApp(
+    MyApp(
+      hotelID: hotelID,
+      tableID: tableID,
+      isAdmin: isAdmin,
+      savedHotelID: savedHotelID,
+    ),
+  );
 }
 
 class MyApp extends StatelessWidget {
   final String? hotelID;
   final String? tableID;
   final bool isAdmin;
+  final String? savedHotelID;
 
-  const MyApp({this.hotelID, this.tableID, required this.isAdmin, super.key});
+  const MyApp({
+    this.hotelID,
+    this.tableID,
+    required this.isAdmin,
+    this.savedHotelID,
+    super.key,
+  });
 
   @override
   Widget build(BuildContext context) {
     Widget home;
 
     if (hotelID != null && tableID != null) {
-      // User scanned QR → go to Menu Screen
       home = MenuScreen(hotelID: hotelID!, tableID: tableID!);
     } else if (isAdmin) {
-      // Admin URL → show login
-      home = const LoginPage();
+      if (savedHotelID != null && savedHotelID!.isNotEmpty) {
+        home = AdminDashboardPage();
+      } else {
+        home = const LoginPage();
+      }
     } else {
-      // Fallback → redirect to admin login
       home = const LoginPage();
     }
 

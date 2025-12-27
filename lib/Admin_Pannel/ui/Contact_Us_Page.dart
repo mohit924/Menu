@@ -3,6 +3,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:menu_scan_web/Admin_Pannel/ui/Dashboard.dart';
 import 'package:menu_scan_web/Admin_Pannel/widgets/common_header.dart';
 import 'package:menu_scan_web/Custom/App_colors.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class ContactUsPage extends StatefulWidget {
   const ContactUsPage({Key? key}) : super(key: key);
@@ -16,9 +17,34 @@ class _ContactUsPageState extends State<ContactUsPage> {
   final TextEditingController _contactController = TextEditingController();
   final TextEditingController _messageController = TextEditingController();
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
-  final String hotelID = "OPSY"; // Static hotel ID
+  String? hotelID;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadHotelID();
+  }
+
+  Future<void> _loadHotelID() async {
+    final prefs = await SharedPreferences.getInstance();
+    final savedHotelID = prefs.getString('hotelID');
+
+    if (savedHotelID == null || savedHotelID.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Session expired. Please login again")),
+      );
+      Navigator.pop(context);
+      return;
+    }
+
+    setState(() {
+      hotelID = savedHotelID;
+    });
+  }
 
   void submitMessage() async {
+    if (hotelID == null) return;
+
     final name = _nameController.text.trim();
     final contact = _contactController.text.trim();
     final message = _messageController.text.trim();
@@ -35,7 +61,7 @@ class _ContactUsPageState extends State<ContactUsPage> {
         'name': name,
         'contact': contact,
         'message': message,
-        'hotelID': hotelID,
+        'hotelID': hotelID!, // ✅ dynamic
         'createdAt': Timestamp.now(),
       });
 
@@ -47,7 +73,6 @@ class _ContactUsPageState extends State<ContactUsPage> {
       _contactController.clear();
       _messageController.clear();
 
-      // Navigate to Admin Dashboard
       Navigator.pushReplacement(
         context,
         MaterialPageRoute(builder: (_) => const AdminDashboardPage()),

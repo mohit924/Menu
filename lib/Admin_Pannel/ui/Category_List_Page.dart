@@ -6,6 +6,7 @@ import 'package:menu_scan_web/Admin_Pannel/ui/Edit_Category_Page.dart';
 import 'package:menu_scan_web/Admin_Pannel/ui/Item_List_Page.dart';
 import 'package:menu_scan_web/Admin_Pannel/widgets/common_header.dart';
 import 'package:menu_scan_web/Custom/App_colors.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class CategoryListPage extends StatefulWidget {
   const CategoryListPage({Key? key}) : super(key: key);
@@ -17,7 +18,29 @@ class CategoryListPage extends StatefulWidget {
 class _CategoryListPageState extends State<CategoryListPage> {
   String _searchQuery = '';
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
-  final String hotelID = "OPSY";
+  String? hotelID;
+  @override
+  void initState() {
+    super.initState();
+    _loadHotelID();
+  }
+
+  Future<void> _loadHotelID() async {
+    final prefs = await SharedPreferences.getInstance();
+    final savedHotelID = prefs.getString('hotelID');
+
+    if (savedHotelID == null || savedHotelID.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Session expired. Please login again")),
+      );
+      Navigator.pop(context);
+      return;
+    }
+
+    setState(() {
+      hotelID = savedHotelID;
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -158,7 +181,7 @@ class _CategoryListPageState extends State<CategoryListPage> {
                                       MaterialPageRoute(
                                         builder: (_) => EditCategoryPage(
                                           categoryId: catDoc.id,
-                                          hotelID: hotelID,
+                                          hotelID: hotelID!,
                                           initialName: catDoc['categoryName'],
                                         ),
                                       ),

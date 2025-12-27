@@ -4,6 +4,7 @@ import 'package:menu_scan_web/Admin_Pannel/ui/Dashboard.dart';
 import 'package:menu_scan_web/Admin_Pannel/ui/login.dart';
 import 'package:menu_scan_web/Admin_Pannel/widgets/common_header.dart';
 import 'package:menu_scan_web/Custom/App_colors.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class UpdateProfilePage extends StatefulWidget {
   const UpdateProfilePage({Key? key}) : super(key: key);
@@ -18,13 +19,33 @@ class _UpdateProfilePageState extends State<UpdateProfilePage> {
   final TextEditingController _passwordController = TextEditingController();
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
-  final String hotelID = "OPSY"; // static hotel ID
-  String? docId; // Firestore document ID
-  bool _obscurePassword = true; // toggle for password visibility
+  String? hotelID;
+  String? docId;
+  bool _obscurePassword = true;
 
   @override
   void initState() {
     super.initState();
+    _loadProfile();
+    _loadHotelID();
+  }
+
+  Future<void> _loadHotelID() async {
+    final prefs = await SharedPreferences.getInstance();
+    final savedHotelID = prefs.getString('hotelID');
+
+    if (savedHotelID == null || savedHotelID.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Session expired. Please login again")),
+      );
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (_) => const LoginPage()),
+      );
+      return;
+    }
+
+    hotelID = savedHotelID;
     _loadProfile();
   }
 
@@ -41,6 +62,7 @@ class _UpdateProfilePageState extends State<UpdateProfilePage> {
       _hotelNameController.text = doc['hotelName'];
       _mobileController.text = doc['phone'];
       _passwordController.text = doc['password'];
+
       setState(() {});
     } else {
       ScaffoldMessenger.of(
@@ -72,7 +94,6 @@ class _UpdateProfilePageState extends State<UpdateProfilePage> {
         const SnackBar(content: Text("Profile updated successfully!")),
       );
 
-      // Navigate to AdminDashboard after success
       Navigator.pushReplacement(
         context,
         MaterialPageRoute(builder: (context) => const AdminDashboardPage()),
@@ -85,6 +106,10 @@ class _UpdateProfilePageState extends State<UpdateProfilePage> {
   }
 
   Future<void> _logout() async {
+    final prefs = await SharedPreferences.getInstance();
+
+    await prefs.remove('hotelID');
+
     Navigator.pushReplacement(
       context,
       MaterialPageRoute(builder: (context) => const LoginPage()),

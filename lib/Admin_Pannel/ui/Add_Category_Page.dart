@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:menu_scan_web/Admin_Pannel/widgets/common_header.dart';
 import 'package:menu_scan_web/Custom/App_colors.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class AddCategoryPage extends StatefulWidget {
   const AddCategoryPage({Key? key}) : super(key: key);
@@ -13,10 +14,32 @@ class AddCategoryPage extends StatefulWidget {
 class _AddCategoryPageState extends State<AddCategoryPage> {
   final TextEditingController _nameController = TextEditingController();
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  String? hotelID;
+  @override
+  void initState() {
+    super.initState();
+    _loadHotelID();
+  }
+
+  Future<void> _loadHotelID() async {
+    final prefs = await SharedPreferences.getInstance();
+    final savedHotelID = prefs.getString('hotelID');
+
+    if (savedHotelID == null || savedHotelID.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Session expired. Please login again.")),
+      );
+      Navigator.pop(context);
+      return;
+    }
+
+    setState(() {
+      hotelID = savedHotelID;
+    });
+  }
 
   void addCategory() async {
     final categoryName = _nameController.text.trim();
-    final hotelID = "OPSY"; // Hardcoded hotel ID
 
     if (categoryName.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -25,8 +48,14 @@ class _AddCategoryPageState extends State<AddCategoryPage> {
       return;
     }
 
+    if (hotelID == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Hotel not found. Please login again.")),
+      );
+      return;
+    }
+
     try {
-      // Run transaction to get unique category ID
       await _firestore.runTransaction((transaction) async {
         final counterDoc = _firestore
             .collection('CategoryCounters')
@@ -43,11 +72,10 @@ class _AddCategoryPageState extends State<AddCategoryPage> {
           transaction.set(counterDoc, {'lastID': newCategoryID});
         }
 
-        // Add category with unique ID
         final categoryDoc = _firestore.collection('AddCategory').doc();
         transaction.set(categoryDoc, {
           'categoryName': categoryName,
-          'hotelID': hotelID,
+          'hotelID': hotelID, // ✅ dynamic hotelID
           'categoryID': newCategoryID,
           'createdAt': Timestamp.now(),
         });
@@ -57,9 +85,7 @@ class _AddCategoryPageState extends State<AddCategoryPage> {
         const SnackBar(content: Text("Category added successfully!")),
       );
 
-      Navigator.pop(
-        context,
-      ); // Go back to list (StreamBuilder updates automatically)
+      Navigator.pop(context);
     } catch (e) {
       ScaffoldMessenger.of(
         context,

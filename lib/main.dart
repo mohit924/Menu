@@ -3,11 +3,12 @@ import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:menu_scan_web/Admin_Pannel/ui/Dashboard.dart';
 import 'package:menu_scan_web/Admin_Pannel/ui/login.dart';
-import 'package:menu_scan_web/Admin_Pannel/widgets/Multi_Lang.dart';
 import 'package:menu_scan_web/Customer/Screen_Ui/Menu_screen.dart';
+import 'package:menu_scan_web/Customer/Widgets/Language_Bttom_Sheet%20.dart';
 import 'package:menu_scan_web/firebase_options.dart';
 import 'dart:html' as html;
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:provider/provider.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -21,7 +22,16 @@ void main() async {
   final prefs = await SharedPreferences.getInstance();
   final savedHotelID = prefs.getString('hotelID');
 
-  runApp(MyApp(hotelID: hotelID, tableID: tableID, savedHotelID: savedHotelID));
+  runApp(
+    ChangeNotifierProvider(
+      create: (_) => LanguageProvider(),
+      child: MyApp(
+        hotelID: hotelID,
+        tableID: tableID,
+        savedHotelID: savedHotelID,
+      ),
+    ),
+  );
 }
 
 class MyApp extends StatelessWidget {

@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:menu_scan_web/Customer/Widgets/Language_Bttom_Sheet%20.dart';
 import 'package:menu_scan_web/Customer/Widgets/item_model.dart';
+import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:shimmer/shimmer.dart'; // <<<< import shimmer
 import 'package:menu_scan_web/Custom/App_colors.dart';
@@ -57,6 +58,13 @@ class _MenuScreenState extends State<MenuScreen> {
     _loadCartFromPrefs();
   }
 
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    // Called whenever this screen becomes visible again
+    _loadCartFromPrefs();
+  }
+
   Future<void> _loadCartFromPrefs() async {
     final prefs = await SharedPreferences.getInstance();
     final String? cartData = prefs.getString('cart_items');
@@ -69,14 +77,46 @@ class _MenuScreenState extends State<MenuScreen> {
         loadedItems[item.id] = item;
       }
 
-      selectedItems = loadedItems; // just load, don't update buttonStates yet
+      setState(() {
+        selectedItems = loadedItems;
+
+        // Update buttonStates to match new cart
+        for (var entry in buttonStates.entries) {
+          final id = entry.key;
+          entry.value["count"] = selectedItems[id]?.quantity ?? 0;
+          entry.value["isCompleted"] = (selectedItems[id]?.quantity ?? 0) > 0;
+        }
+      });
     }
   }
 
-  Future<String> translateText(String text) async {
-    if (selectedLangCode == "en" || text.isEmpty) {
-      return text;
+  void _updateItemCount(int id, int count, Map<String, dynamic> item) async {
+    setState(() {
+      buttonStates[id]!["isCompleted"] = count > 0;
+      buttonStates[id]!["count"] = count;
+    });
+
+    if (count > 0) {
+      selectedItems[id] = SelectedItem(
+        id: id,
+        name: item["name"],
+        price: item["price"],
+        quantity: count,
+      );
+    } else {
+      selectedItems.remove(id);
     }
+
+    final prefs = await SharedPreferences.getInstance();
+    final itemsList = selectedItems.values.map((e) => e.toMap()).toList();
+    prefs.setString('cart_items', jsonEncode(itemsList));
+  }
+
+  Future<String> translateText(String text) async {
+    final langProvider = context.read<LanguageProvider>();
+    final selectedLangCode = langProvider.code;
+
+    if (selectedLangCode == "en" || text.isEmpty) return text;
 
     translatedCache.putIfAbsent(selectedLangCode, () => {});
 
@@ -175,7 +215,6 @@ class _MenuScreenState extends State<MenuScreen> {
           final itemData = itemDoc.data();
           final bool isAvailable = itemData['available'] == true;
 
-          // Skip item if not available
           if (!isAvailable) continue;
 
           final id = itemData['itemID'] as int;
@@ -260,6 +299,11 @@ class _MenuScreenState extends State<MenuScreen> {
 
   void _showMenuBottomSheet(Map<String, dynamic> item) {
     final imageUrl = _imageUrlCache[item["image"]];
+    final state = buttonStates[item["id"]];
+    final initialCount = (buttonStates[item["id"]]?["count"] ?? 1)
+        .clamp(1, double.infinity)
+        .toInt();
+
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -267,43 +311,12 @@ class _MenuScreenState extends State<MenuScreen> {
       builder: (context) => MenuBottomSheet(
         item: item,
         imageUrl: imageUrl,
+        initialCount: initialCount,
         onAdd: (count) {
-          final id = item["id"];
-          setState(() {
-            buttonStates[id]!["isCompleted"] = true;
-            buttonStates[id]!["count"] = count;
-          });
+          _updateItemCount(item["id"], count, item);
         },
       ),
     );
-  }
-
-  void _updateButtonState(
-    int id,
-    bool isCompleted,
-    int count,
-    Map<String, dynamic> item,
-  ) async {
-    setState(() {
-      buttonStates[id]!["isCompleted"] = isCompleted;
-      buttonStates[id]!["count"] = count;
-    });
-
-    if (isCompleted && count > 0) {
-      selectedItems[id] = SelectedItem(
-        id: id,
-        name: item["name"],
-        price: item["price"],
-        quantity: count,
-      );
-    } else {
-      selectedItems.remove(id);
-    }
-
-    // Save to SharedPreferences
-    final prefs = await SharedPreferences.getInstance();
-    final itemsList = selectedItems.values.map((e) => e.toMap()).toList();
-    prefs.setString('cart_items', jsonEncode(itemsList));
   }
 
   void _scrollToCategory(String category) {
@@ -411,14 +424,10 @@ class _MenuScreenState extends State<MenuScreen> {
               LanguageBottomSheet.show(
                 context: context,
                 onSelected: (code, name) async {
-                  debugPrint("Selected language: $name ($code)");
+                  final langProvider = context.read<LanguageProvider>();
+                  langProvider.setLanguage(code, name);
 
-                  setState(() {
-                    selectedLangCode = code;
-                    selectedLangName = name;
-                  });
-
-                  await fetchCategoriesAndItems();
+                  await fetchCategoriesAndItems(); // re-fetch items in new language
 
                   ScaffoldMessenger.of(
                     context,
@@ -427,6 +436,7 @@ class _MenuScreenState extends State<MenuScreen> {
               );
             },
           ),
+
           IconButton(
             icon: const Icon(Icons.sort, color: AppColors.whiteColor),
             onPressed: () {
@@ -632,9 +642,8 @@ class _MenuScreenState extends State<MenuScreen> {
                                                                     newCompleted,
                                                                     newCount,
                                                                   ) {
-                                                                    _updateButtonState(
+                                                                    _updateItemCount(
                                                                       id,
-                                                                      newCompleted,
                                                                       newCount,
                                                                       item,
                                                                     );

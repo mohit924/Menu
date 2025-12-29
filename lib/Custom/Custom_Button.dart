@@ -5,14 +5,12 @@ class ToggleAddButton extends StatefulWidget {
   final bool isCompleted;
   final int count;
   final Function(bool, int) onChanged;
-  final double? width;
 
   const ToggleAddButton({
     Key? key,
     required this.isCompleted,
     required this.count,
     required this.onChanged,
-    this.width,
   }) : super(key: key);
 
   @override
@@ -109,11 +107,10 @@ class _ToggleAddButtonState extends State<ToggleAddButton>
 
   @override
   Widget build(BuildContext context) {
-    double buttonWidth = widget.width ?? 60;
     return GestureDetector(
       onTap: _startAnimation,
       child: Container(
-        width: buttonWidth,
+        width: 100,
         height: 40,
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(8),

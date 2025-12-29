@@ -1,9 +1,11 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:menu_scan_web/Custom/App_colors.dart';
-import 'package:menu_scan_web/Custom/place_order_button.dart';
+import 'package:menu_scan_web/Customer/Widgets/Language_Bttom_Sheet%20.dart';
 import 'package:menu_scan_web/Customer/Widgets/item_model.dart';
+import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:translator/translator.dart';
 
 class CartPage extends StatefulWidget {
   const CartPage({Key? key}) : super(key: key);
@@ -13,7 +15,9 @@ class CartPage extends StatefulWidget {
 }
 
 class _CartPageState extends State<CartPage> {
-  List<SelectedItem> _cartItems = [];
+  Map<int, SelectedItem> _cartItemsMap = {}; // key = itemID
+  final translator = GoogleTranslator();
+  Map<String, String> _translatedNames = {}; // cache for translations
 
   @override
   void initState() {
@@ -24,71 +28,122 @@ class _CartPageState extends State<CartPage> {
   Future<void> _loadCartFromPrefs() async {
     final prefs = await SharedPreferences.getInstance();
     final String? cartData = prefs.getString('cart_items');
-
     if (cartData != null) {
       final List<dynamic> decoded = jsonDecode(cartData);
-      final loadedItems = decoded
-          .map(
-            (itemMap) =>
-                SelectedItem.fromMap(Map<String, dynamic>.from(itemMap)),
-          )
-          .toList();
-
+      final Map<int, SelectedItem> loadedItems = {};
+      for (var itemMap in decoded) {
+        final item = SelectedItem.fromMap(Map<String, dynamic>.from(itemMap));
+        loadedItems[item.id] = item;
+      }
       setState(() {
-        _cartItems = loadedItems;
+        _cartItemsMap = loadedItems;
       });
+      _translateAllItems();
     }
   }
 
-  int get totalItems => _cartItems.fold(0, (sum, item) => sum + item.quantity);
+  Future<void> _translateAllItems() async {
+    final langProvider = context.read<LanguageProvider>();
+    final langCode = langProvider.code;
 
-  double get totalPrice => _cartItems.fold(
+    if (langCode == "en") {
+      _translatedNames.clear();
+      setState(() {});
+      return;
+    }
+
+    for (var item in _cartItemsMap.values) {
+      final result = await translator.translate(item.name, to: langCode);
+      _translatedNames[item.name] = result.text;
+    }
+    setState(() {});
+  }
+
+  int get totalItems =>
+      _cartItemsMap.values.fold(0, (sum, item) => sum + item.quantity);
+
+  double get totalPrice => _cartItemsMap.values.fold(
     0,
     (sum, item) =>
         sum + (item.quantity * int.parse(item.price.replaceAll('₹', ''))),
   );
 
-  void _incrementItem(int index) {
+  void _updateItemQuantity(int id, int change) async {
     setState(() {
-      _cartItems[index].quantity += 1;
-    });
-    _saveCartToPrefs();
-  }
-
-  void _decrementItem(int index) {
-    setState(() {
-      if (_cartItems[index].quantity > 1) {
-        _cartItems[index].quantity -= 1;
-      } else {
-        _cartItems.removeAt(index);
+      if (_cartItemsMap.containsKey(id)) {
+        _cartItemsMap[id]!.quantity += change;
+        if (_cartItemsMap[id]!.quantity <= 0) {
+          _cartItemsMap.remove(id);
+        }
       }
     });
-    _saveCartToPrefs();
+    await _saveCartToPrefs();
   }
 
   Future<void> _saveCartToPrefs() async {
     final prefs = await SharedPreferences.getInstance();
-    final itemsList = _cartItems.map((e) => e.toMap()).toList();
-    prefs.setString('cart_items', jsonEncode(itemsList));
+    final itemsList = _cartItemsMap.values.map((e) => e.toMap()).toList();
+    await prefs.setString('cart_items', jsonEncode(itemsList));
+  }
+
+  void _onLanguageChanged() {
+    _translateAllItems();
   }
 
   @override
   Widget build(BuildContext context) {
+    final _cartItems = _cartItemsMap.values.toList();
+
     return Scaffold(
       appBar: AppBar(
         backgroundColor: AppColors.primaryBackground,
-        title: const Text(
-          "Your Cart",
-          style: TextStyle(color: AppColors.whiteColor),
-        ),
-        centerTitle: true,
+        elevation: 2,
         leading: IconButton(
           icon: const Icon(Icons.home, color: AppColors.whiteColor),
-          onPressed: () {
-            Navigator.pop(context);
-            // );
-          },
+          onPressed: () => Navigator.pop(context),
         ),
+        title: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          mainAxisSize: MainAxisSize.min,
+          children: const [
+            Text(
+              'My',
+              style: TextStyle(
+                color: AppColors.OrangeColor,
+                fontSize: 16,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+            SizedBox(width: 4),
+            Text(
+              'Shortlist',
+              style: TextStyle(
+                color: AppColors.OrangeColor,
+                fontSize: 16,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ],
+        ),
+        centerTitle: true,
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.language, color: AppColors.whiteColor),
+            onPressed: () {
+              LanguageBottomSheet.show(
+                context: context,
+                onSelected: (code, name) {
+                  final langProvider = context.read<LanguageProvider>();
+                  langProvider.setLanguage(code, name);
+                  _onLanguageChanged();
+                  ScaffoldMessenger.of(
+                    context,
+                  ).showSnackBar(SnackBar(content: Text("$name selected")));
+                },
+              );
+            },
+          ),
+        ],
       ),
       backgroundColor: AppColors.primaryBackground,
       body: Column(
@@ -108,6 +163,9 @@ class _CartPageState extends State<CartPage> {
                     itemCount: _cartItems.length,
                     itemBuilder: (context, index) {
                       final item = _cartItems[index];
+                      final displayName =
+                          _translatedNames[item.name] ?? item.name;
+
                       return Card(
                         color: AppColors.secondaryBackground,
                         margin: const EdgeInsets.symmetric(
@@ -124,7 +182,7 @@ class _CartPageState extends State<CartPage> {
                               Expanded(
                                 flex: 4,
                                 child: Text(
-                                  item.name,
+                                  displayName,
                                   style: const TextStyle(
                                     color: AppColors.LightGreyColor,
                                     fontWeight: FontWeight.bold,
@@ -146,7 +204,8 @@ class _CartPageState extends State<CartPage> {
                                   mainAxisAlignment: MainAxisAlignment.center,
                                   children: [
                                     GestureDetector(
-                                      onTap: () => _decrementItem(index),
+                                      onTap: () =>
+                                          _updateItemQuantity(item.id, -1),
                                       child: const Icon(
                                         Icons.remove,
                                         color: AppColors.whiteColor,
@@ -163,7 +222,8 @@ class _CartPageState extends State<CartPage> {
                                     ),
                                     const SizedBox(width: 8),
                                     GestureDetector(
-                                      onTap: () => _incrementItem(index),
+                                      onTap: () =>
+                                          _updateItemQuantity(item.id, 1),
                                       child: const Icon(
                                         Icons.add,
                                         color: AppColors.whiteColor,
@@ -196,7 +256,7 @@ class _CartPageState extends State<CartPage> {
             color: AppColors.secondaryBackground,
             padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 16),
             child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              mainAxisAlignment: MainAxisAlignment.end,
               children: [
                 Text(
                   "Total: ₹${totalPrice.toStringAsFixed(0)}",
@@ -205,11 +265,6 @@ class _CartPageState extends State<CartPage> {
                     fontWeight: FontWeight.bold,
                     fontSize: 16,
                   ),
-                ),
-                PlaceOrderButton(
-                  onPressed: () {
-                    // TODO: handle order placement
-                  },
                 ),
               ],
             ),

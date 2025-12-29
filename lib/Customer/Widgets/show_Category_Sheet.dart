@@ -40,7 +40,7 @@ class CategoryBottomSheet extends StatelessWidget {
                 style: TextStyle(
                   fontSize: 18,
                   fontWeight: FontWeight.bold,
-                  color: AppColors.LightGreyColor,
+                  color: AppColors.OrangeColor,
                 ),
               ),
               const SizedBox(height: 12),
@@ -53,12 +53,12 @@ class CategoryBottomSheet extends StatelessWidget {
                     return ListTile(
                       title: Text(
                         categories[index],
-                        style: TextStyle(color: AppColors.OrangeColor),
+                        style: TextStyle(color: AppColors.LightGreyColor),
                       ),
                       trailing: const Icon(
                         Icons.arrow_forward_ios,
                         size: 16,
-                        color: AppColors.LightGreyColor,
+                        color: AppColors.OrangeColor,
                       ),
                       onTap: () {
                         Navigator.pop(context);

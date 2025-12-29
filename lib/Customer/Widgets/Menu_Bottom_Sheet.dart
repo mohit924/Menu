@@ -6,12 +6,14 @@ class MenuBottomSheet extends StatefulWidget {
   final Map<String, dynamic> item;
   final Function(int count) onAdd;
   final String? imageUrl;
+  final int initialCount;
 
   const MenuBottomSheet({
     Key? key,
     required this.item,
     required this.onAdd,
     this.imageUrl,
+    this.initialCount = 1,
   }) : super(key: key);
 
   @override
@@ -19,11 +21,18 @@ class MenuBottomSheet extends StatefulWidget {
 }
 
 class _MenuBottomSheetState extends State<MenuBottomSheet> {
-  int count = 1;
+  late int count; // <-- changed
+
+  @override
+  void initState() {
+    super.initState();
+    count = widget.initialCount; // initialize from main screen
+  }
 
   @override
   Widget build(BuildContext context) {
     final height = MediaQuery.of(context).size.height;
+
     Future<String?> _getImageUrl(String path) async {
       if (path.isEmpty) return null;
       try {
@@ -53,6 +62,7 @@ class _MenuBottomSheetState extends State<MenuBottomSheet> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   // Image
+                  // Replace the image part in your build method with this
                   ClipRRect(
                     borderRadius: const BorderRadius.vertical(
                       top: Radius.circular(20),
@@ -63,16 +73,32 @@ class _MenuBottomSheetState extends State<MenuBottomSheet> {
                             fit: BoxFit.contain,
                             height: height * 0.3,
                             width: double.infinity,
+                            errorBuilder: (context, error, stackTrace) {
+                              // <-- shows fastfood icon if image fails
+                              return Container(
+                                height: height * 0.3,
+                                width: double.infinity,
+                                color: Colors.grey[300],
+                                child: const Icon(
+                                  Icons.fastfood,
+                                  size: 50,
+                                  color: Colors.grey,
+                                ),
+                              );
+                            },
                           )
                         : Container(
                             height: height * 0.3,
                             color: Colors.grey[300],
-                            child: const Icon(Icons.image, size: 50),
+                            child: const Icon(
+                              Icons.fastfood,
+                              size: 50,
+                              color: Colors.grey,
+                            ),
                           ),
                   ),
 
                   const SizedBox(height: 16),
-
                   // Name
                   Text(
                     widget.item["name"],
@@ -82,7 +108,6 @@ class _MenuBottomSheetState extends State<MenuBottomSheet> {
                       color: AppColors.LightGreyColor,
                     ),
                   ),
-
                   const SizedBox(height: 12),
                   Text(
                     widget.item["description"],
@@ -170,7 +195,6 @@ class _MenuBottomSheetState extends State<MenuBottomSheet> {
                       widget.onAdd(count);
                       Navigator.pop(context);
                     },
-
                     child: Container(
                       height: 50,
                       decoration: BoxDecoration(

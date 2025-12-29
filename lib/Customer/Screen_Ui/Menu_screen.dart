@@ -173,6 +173,11 @@ class _MenuScreenState extends State<MenuScreen> {
 
         for (var itemDoc in itemSnapshot.docs) {
           final itemData = itemDoc.data();
+          final bool isAvailable = itemData['available'] == true;
+
+          // Skip item if not available
+          if (!isAvailable) continue;
+
           final id = itemData['itemID'] as int;
 
           final imagePath = itemData['imageUrl'] ?? '';

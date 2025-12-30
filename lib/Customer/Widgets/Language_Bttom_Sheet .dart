@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:menu_scan_web/Custom/App_colors.dart';
+import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class LanguageBottomSheet {
@@ -70,11 +71,18 @@ class LanguageBottomSheet {
     required String code,
     required Function(String code, String name) onSelected,
   }) {
+    final langProvider = context.watch<LanguageProvider>();
+    final isSelected =
+        langProvider.code == code; // check if this language is selected
+
     return ListTile(
-      leading: const Icon(Icons.translate, color: AppColors.OrangeColor),
+      leading: const Icon(Icons.translate, color: AppColors.LightGreyColor),
       title: Text(
         title,
-        style: const TextStyle(color: AppColors.LightGreyColor),
+        style: TextStyle(
+          color: isSelected ? AppColors.OrangeColor : AppColors.whiteColor,
+          fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+        ),
       ),
       onTap: () {
         Navigator.pop(context);

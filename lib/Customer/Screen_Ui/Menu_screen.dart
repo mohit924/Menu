@@ -3,6 +3,8 @@ import 'dart:convert';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:menu_scan_web/Custom/app_loader.dart';
+import 'package:menu_scan_web/Custom/app_snackbar.dart';
 import 'package:menu_scan_web/Customer/Widgets/Language_Bttom_Sheet%20.dart';
 import 'package:menu_scan_web/Customer/Widgets/item_model.dart';
 import 'package:provider/provider.dart';
@@ -41,6 +43,11 @@ class _MenuScreenState extends State<MenuScreen> {
   String _searchQuery = '';
   String? _hotelName;
   bool _hotelLoading = true;
+  bool _isMenuLoading = true;
+  bool _isInitialLoad = true;
+  bool _isLanguageChanging = false;
+  String? _lastLangCode;
+
   final translator = GoogleTranslator();
   Map<int, SelectedItem> selectedItems = {}; // key = itemID
 
@@ -53,6 +60,9 @@ class _MenuScreenState extends State<MenuScreen> {
   @override
   void initState() {
     super.initState();
+    _isInitialLoad = true;
+    _isMenuLoading = true;
+
     fetchCategoriesAndItems();
     _fetchHotelName();
     _loadCartFromPrefs();
@@ -61,12 +71,54 @@ class _MenuScreenState extends State<MenuScreen> {
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    // Called whenever this screen becomes visible again
-    _loadCartFromPrefs();
+
+    final currentLangCode = context.watch<LanguageProvider>().code;
+
+    // First time → just store the language
+    if (_lastLangCode == null) {
+      _lastLangCode = currentLangCode;
+      return;
+    }
+
+    // Only reload if language actually changed
+    if (currentLangCode != _lastLangCode) {
+      _lastLangCode = currentLangCode;
+
+      setState(() {
+        _isLanguageChanging = true;
+        _isMenuLoading = true;
+      });
+
+      // ✅ Clear previous translations
+      translatedCache.clear();
+
+      // ✅ Reload menu with new language
+      fetchCategoriesAndItems();
+    }
   }
 
   Future<void> _loadCartFromPrefs() async {
     final prefs = await SharedPreferences.getInstance();
+    final int? savedTimestamp = prefs.getInt('cart_timestamp');
+
+    if (savedTimestamp != null) {
+      final now = DateTime.now().millisecondsSinceEpoch;
+      final difference = now - savedTimestamp;
+      const twentyFourHours = 24 * 60 * 60 * 1000;
+
+      if (difference > twentyFourHours) {
+        // Cart expired → clear it
+        prefs.remove('cart_items');
+        prefs.remove('cart_timestamp');
+        selectedItems.clear();
+        buttonStates.forEach((key, value) {
+          value["count"] = 0;
+          value["isCompleted"] = false;
+        });
+        return;
+      }
+    }
+
     final String? cartData = prefs.getString('cart_items');
     if (cartData != null) {
       final List<dynamic> decoded = jsonDecode(cartData);
@@ -99,7 +151,7 @@ class _MenuScreenState extends State<MenuScreen> {
     if (count > 0) {
       selectedItems[id] = SelectedItem(
         id: id,
-        name: item["name"],
+        name: item["originalName"],
         price: item["price"],
         quantity: count,
       );
@@ -110,6 +162,9 @@ class _MenuScreenState extends State<MenuScreen> {
     final prefs = await SharedPreferences.getInstance();
     final itemsList = selectedItems.values.map((e) => e.toMap()).toList();
     prefs.setString('cart_items', jsonEncode(itemsList));
+
+    // Save current timestamp
+    prefs.setInt('cart_timestamp', DateTime.now().millisecondsSinceEpoch);
   }
 
   Future<String> translateText(String text) async {
@@ -262,13 +317,20 @@ class _MenuScreenState extends State<MenuScreen> {
       if (mounted) {
         setState(() {
           categories = tempCategories;
+          _isMenuLoading = false;
+          _isInitialLoad = false;
+          _isLanguageChanging = false;
         });
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text("Error: $e")));
+        setState(() {
+          _isMenuLoading = false;
+          _isLanguageChanging = false;
+          _isInitialLoad = false;
+        });
+
+        AppSnackBar.show(context, message: "Error: $e", type: SnackType.error);
       }
     }
   }
@@ -419,19 +481,18 @@ class _MenuScreenState extends State<MenuScreen> {
         ),
         actions: [
           IconButton(
-            icon: const Icon(Icons.language, color: AppColors.whiteColor),
+            icon: const Icon(Icons.translate, color: AppColors.whiteColor),
             onPressed: () {
               LanguageBottomSheet.show(
                 context: context,
-                onSelected: (code, name) async {
-                  final langProvider = context.read<LanguageProvider>();
-                  langProvider.setLanguage(code, name);
+                onSelected: (code, name) {
+                  context.read<LanguageProvider>().setLanguage(code, name);
 
-                  await fetchCategoriesAndItems(); // re-fetch items in new language
-
-                  ScaffoldMessenger.of(
+                  AppSnackBar.show(
                     context,
-                  ).showSnackBar(SnackBar(content: Text("$name selected")));
+                    message: "$name selected",
+                    type: SnackType.success,
+                  );
                 },
               );
             },
@@ -461,8 +522,12 @@ class _MenuScreenState extends State<MenuScreen> {
               Expanded(
                 child: Padding(
                   padding: const EdgeInsets.all(10),
-                  child: groupedItems.isEmpty
-                      ? const Center(child: CircularProgressIndicator())
+                  child: _isMenuLoading
+                      ? AppLoaderWidget(
+                          message: _isLanguageChanging
+                              ? "Updating language..."
+                              : "Loading menu...",
+                        )
                       : ListView(
                           controller: _scrollController,
                           padding: EdgeInsets.only(
@@ -496,7 +561,7 @@ class _MenuScreenState extends State<MenuScreen> {
                                       duration: const Duration(
                                         milliseconds: 300,
                                       ),
-                                      height: isExpanded ? 50 : 20,
+                                      height: isExpanded ? 50 : 25,
                                       alignment: Alignment.center,
                                       child: Row(
                                         mainAxisAlignment:
@@ -683,11 +748,14 @@ class _MenuScreenState extends State<MenuScreen> {
               bottom: 0,
               child: BottomCartContainer(
                 totalCount: totalCount,
-                onViewCart: () {
-                  Navigator.push(
+                onViewCart: () async {
+                  await Navigator.push(
                     context,
                     MaterialPageRoute(builder: (context) => CartPage()),
                   );
+
+                  // 🔥 Reload cart & sync buttons
+                  _loadCartFromPrefs();
                 },
               ),
             ),

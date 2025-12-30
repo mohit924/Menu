@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:menu_scan_web/Custom/App_colors.dart';
+import 'package:menu_scan_web/Custom/app_snackbar.dart';
 import 'package:menu_scan_web/Customer/Widgets/Language_Bttom_Sheet%20.dart';
 import 'package:menu_scan_web/Customer/Widgets/item_model.dart';
 import 'package:provider/provider.dart';
@@ -128,7 +129,7 @@ class _CartPageState extends State<CartPage> {
         centerTitle: true,
         actions: [
           IconButton(
-            icon: const Icon(Icons.language, color: AppColors.whiteColor),
+            icon: const Icon(Icons.translate, color: AppColors.whiteColor),
             onPressed: () {
               LanguageBottomSheet.show(
                 context: context,
@@ -136,9 +137,11 @@ class _CartPageState extends State<CartPage> {
                   final langProvider = context.read<LanguageProvider>();
                   langProvider.setLanguage(code, name);
                   _onLanguageChanged();
-                  ScaffoldMessenger.of(
+                  AppSnackBar.show(
                     context,
-                  ).showSnackBar(SnackBar(content: Text("$name selected")));
+                    message: "$name selected",
+                    type: SnackType.success,
+                  );
                 },
               );
             },

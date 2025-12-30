@@ -4,6 +4,7 @@ import 'package:menu_scan_web/Admin_Pannel/ui/Dashboard.dart';
 import 'package:menu_scan_web/Admin_Pannel/ui/login.dart';
 import 'package:menu_scan_web/Admin_Pannel/widgets/common_header.dart';
 import 'package:menu_scan_web/Custom/App_colors.dart';
+import 'package:menu_scan_web/Custom/app_snackbar.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class UpdateProfilePage extends StatefulWidget {
@@ -35,9 +36,12 @@ class _UpdateProfilePageState extends State<UpdateProfilePage> {
     final savedHotelID = prefs.getString('hotelID');
 
     if (savedHotelID == null || savedHotelID.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Session expired. Please login again")),
+      AppSnackBar.show(
+        context,
+        message: "Session expired. Please login again",
+        type: SnackType.error,
       );
+
       Navigator.pushReplacement(
         context,
         MaterialPageRoute(builder: (_) => const LoginPage()),
@@ -65,9 +69,11 @@ class _UpdateProfilePageState extends State<UpdateProfilePage> {
 
       setState(() {});
     } else {
-      ScaffoldMessenger.of(
+      AppSnackBar.show(
         context,
-      ).showSnackBar(const SnackBar(content: Text("Profile not found!")));
+        message: "Profile not found!",
+        type: SnackType.error,
+      );
     }
   }
 
@@ -75,9 +81,12 @@ class _UpdateProfilePageState extends State<UpdateProfilePage> {
     if (_hotelNameController.text.isEmpty ||
         _mobileController.text.isEmpty ||
         _passwordController.text.isEmpty) {
-      ScaffoldMessenger.of(
+      AppSnackBar.show(
         context,
-      ).showSnackBar(const SnackBar(content: Text("Please fill all fields")));
+        message: "Please fill all fields",
+        type: SnackType.error,
+      );
+
       return;
     }
 
@@ -90,8 +99,10 @@ class _UpdateProfilePageState extends State<UpdateProfilePage> {
         'password': _passwordController.text.trim(),
       });
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Profile updated successfully!")),
+      AppSnackBar.show(
+        context,
+        message: "Profile updated successfully!",
+        type: SnackType.success,
       );
 
       Navigator.pushReplacement(
@@ -99,9 +110,11 @@ class _UpdateProfilePageState extends State<UpdateProfilePage> {
         MaterialPageRoute(builder: (context) => const AdminDashboardPage()),
       );
     } catch (e) {
-      ScaffoldMessenger.of(
+      AppSnackBar.show(
         context,
-      ).showSnackBar(SnackBar(content: Text("Error updating profile: $e")));
+        message: "Error updating profile: $e",
+        type: SnackType.error,
+      );
     }
   }
 

@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:menu_scan_web/Admin_Pannel/ui/login.dart';
 import 'package:menu_scan_web/Custom/App_colors.dart';
+import 'package:menu_scan_web/Custom/app_snackbar.dart';
 
 class ResetPasswordPage extends StatefulWidget {
   final String phoneNumber;
@@ -27,16 +28,22 @@ class _ResetPasswordPageState extends State<ResetPasswordPage> {
     final confirmPassword = _confirmPasswordController.text.trim();
 
     if (newPassword.isEmpty || confirmPassword.isEmpty) {
-      ScaffoldMessenger.of(
+      AppSnackBar.show(
         context,
-      ).showSnackBar(const SnackBar(content: Text("Please fill all fields")));
+        message: "Please fill all fields",
+        type: SnackType.error,
+      );
+
       return;
     }
 
     if (newPassword != confirmPassword) {
-      ScaffoldMessenger.of(
+      AppSnackBar.show(
         context,
-      ).showSnackBar(const SnackBar(content: Text("Passwords do not match")));
+        message: "Passwords do not match",
+        type: SnackType.error,
+      );
+
       return;
     }
 
@@ -51,9 +58,10 @@ class _ResetPasswordPageState extends State<ResetPasswordPage> {
         await _firestore.collection('AdminSignUp').doc(docId).update({
           'password': newPassword,
         });
-
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text("Password reset successful!")),
+        AppSnackBar.show(
+          context,
+          message: "Password reset successful!",
+          type: SnackType.success,
         );
 
         Navigator.pushAndRemoveUntil(
@@ -62,14 +70,14 @@ class _ResetPasswordPageState extends State<ResetPasswordPage> {
           (route) => false,
         );
       } else {
-        ScaffoldMessenger.of(
+        AppSnackBar.show(
           context,
-        ).showSnackBar(const SnackBar(content: Text("Phone number not found")));
+          message: "Phone number not found",
+          type: SnackType.success,
+        );
       }
     } catch (e) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text("Error: $e")));
+      AppSnackBar.show(context, message: "Error: $e", type: SnackType.success);
     }
   }
 

@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter/services.dart';
 import 'package:menu_scan_web/Admin_Pannel/ui/login.dart';
 import 'package:menu_scan_web/Custom/App_colors.dart';
 import 'dart:math';
+
+import 'package:menu_scan_web/Custom/app_snackbar.dart';
 
 class SignUpPage extends StatefulWidget {
   const SignUpPage({Key? key}) : super(key: key);
@@ -52,30 +55,31 @@ class _SignUpPageState extends State<SignUpPage> {
     final createdAt = DateTime.now();
 
     if (hotelName.isEmpty || phone.isEmpty || password.isEmpty) {
-      ScaffoldMessenger.of(
+      AppSnackBar.show(
         context,
-      ).showSnackBar(const SnackBar(content: Text("Please fill all fields")));
+        message: "Please fill all fields",
+        type: SnackType.error,
+      );
       return;
     }
 
     try {
-      // Check if phone already exists
       final phoneQuery = await _firestore
           .collection('AdminSignUp')
           .where('phone', isEqualTo: phone)
           .get();
 
       if (phoneQuery.docs.isNotEmpty) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text("Phone number already registered!")),
+        AppSnackBar.show(
+          context,
+          message: "Phone number already registered!",
+          type: SnackType.error,
         );
         return;
       }
 
-      // Generate unique hotel ID
       final hotelID = await _generateUniqueHotelID();
 
-      // Add new admin
       await _firestore.collection('AdminSignUp').add({
         'hotelName': hotelName,
         'phone': phone,
@@ -84,24 +88,22 @@ class _SignUpPageState extends State<SignUpPage> {
         'date': createdAt,
       });
 
-      ScaffoldMessenger.of(
+      AppSnackBar.show(
         context,
-      ).showSnackBar(const SnackBar(content: Text("Sign up successful!")));
+        message: "Sign up successful!",
+        type: SnackType.success,
+      );
 
-      // Clear fields
       _hotelNameController.clear();
       _phoneController.clear();
       _passwordController.clear();
 
-      // Navigate to LoginPage
       Navigator.pushReplacement(
         context,
         MaterialPageRoute(builder: (context) => const LoginPage()),
       );
     } catch (e) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text("Error: $e")));
+      AppSnackBar.show(context, message: "Error: $e", type: SnackType.error);
     }
   }
 
@@ -155,9 +157,16 @@ class _SignUpPageState extends State<SignUpPage> {
                       ),
                     ),
                     const SizedBox(height: 16),
+
+                    // Inside your TextField
                     TextField(
                       controller: _phoneController,
                       keyboardType: TextInputType.phone,
+                      maxLength: 13, // limit input to 13 digits
+                      inputFormatters: [
+                        FilteringTextInputFormatter
+                            .digitsOnly, // allow only numbers
+                      ],
                       decoration: InputDecoration(
                         labelText: "Phone Number",
                         labelStyle: const TextStyle(
@@ -172,8 +181,13 @@ class _SignUpPageState extends State<SignUpPage> {
                             color: AppColors.OrangeColor,
                           ),
                         ),
+                        counterText: '${_phoneController.text.length}',
                       ),
+                      onChanged: (_) {
+                        setState(() {});
+                      },
                     ),
+
                     const SizedBox(height: 16),
                     TextField(
                       controller: _passwordController,

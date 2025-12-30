@@ -3,6 +3,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:menu_scan_web/Admin_Pannel/ui/Dashboard.dart';
 import 'package:menu_scan_web/Admin_Pannel/widgets/common_header.dart';
 import 'package:menu_scan_web/Custom/App_colors.dart';
+import 'package:menu_scan_web/Custom/app_snackbar.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class ContactUsPage extends StatefulWidget {
@@ -30,9 +31,12 @@ class _ContactUsPageState extends State<ContactUsPage> {
     final savedHotelID = prefs.getString('hotelID');
 
     if (savedHotelID == null || savedHotelID.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Session expired. Please login again")),
+      AppSnackBar.show(
+        context,
+        message: "Session expired. Please login again",
+        type: SnackType.error,
       );
+
       Navigator.pop(context);
       return;
     }
@@ -50,9 +54,12 @@ class _ContactUsPageState extends State<ContactUsPage> {
     final message = _messageController.text.trim();
 
     if (name.isEmpty || contact.isEmpty || message.isEmpty) {
-      ScaffoldMessenger.of(
+      AppSnackBar.show(
         context,
-      ).showSnackBar(const SnackBar(content: Text("Please fill all fields")));
+        message: "Please fill all fields",
+        type: SnackType.error,
+      );
+
       return;
     }
 
@@ -64,9 +71,10 @@ class _ContactUsPageState extends State<ContactUsPage> {
         'hotelID': hotelID!, // ✅ dynamic
         'createdAt': Timestamp.now(),
       });
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Message sent successfully!")),
+      AppSnackBar.show(
+        context,
+        message: "Message sent successfully!",
+        type: SnackType.success,
       );
 
       _nameController.clear();
@@ -78,9 +86,11 @@ class _ContactUsPageState extends State<ContactUsPage> {
         MaterialPageRoute(builder: (_) => const AdminDashboardPage()),
       );
     } catch (e) {
-      ScaffoldMessenger.of(
+      AppSnackBar.show(
         context,
-      ).showSnackBar(SnackBar(content: Text("Error sending message: $e")));
+        message: "Error sending message: $e",
+        type: SnackType.error,
+      );
     }
   }
 

@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:menu_scan_web/Admin_Pannel/widgets/common_header.dart';
 import 'package:menu_scan_web/Custom/App_colors.dart';
+import 'package:menu_scan_web/Custom/app_snackbar.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:shimmer/shimmer.dart';
 
@@ -31,9 +32,12 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
     final savedHotelID = prefs.getString('hotelID');
 
     if (savedHotelID == null || savedHotelID.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Session expired. Please login again.")),
+      AppSnackBar.show(
+        context,
+        message: "Session expired. Please login again.",
+        type: SnackType.error,
       );
+
       return;
     }
 
@@ -93,9 +97,7 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
         categories = tempCategories;
       });
     } catch (e) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text("Error: $e")));
+      AppSnackBar.show(context, message: "Error: $e", type: SnackType.error);
     }
   }
 
@@ -123,9 +125,11 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
         'available': newValue,
       });
     } catch (e) {
-      ScaffoldMessenger.of(
+      AppSnackBar.show(
         context,
-      ).showSnackBar(SnackBar(content: Text("Error updating: $e")));
+        message: "Error updating: $e",
+        type: SnackType.error,
+      );
     }
   }
 

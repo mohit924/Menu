@@ -7,6 +7,7 @@ import 'package:menu_scan_web/Admin_Pannel/widgets/common_header.dart';
 import 'package:menu_scan_web/Custom/App_colors.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:image/image.dart' as img;
+import 'package:menu_scan_web/Custom/app_snackbar.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class AddItemPage extends StatefulWidget {
@@ -49,9 +50,12 @@ class _AddItemPageState extends State<AddItemPage> {
     final savedHotelID = prefs.getString('hotelID');
 
     if (savedHotelID == null || savedHotelID.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Session expired. Please login again")),
+      AppSnackBar.show(
+        context,
+        message: "Session expired. Please login again",
+        type: SnackType.error,
       );
+
       Navigator.pop(context);
       return;
     }
@@ -81,9 +85,11 @@ class _AddItemPageState extends State<AddItemPage> {
         }).toList();
       });
     } catch (e) {
-      ScaffoldMessenger.of(
+      AppSnackBar.show(
         context,
-      ).showSnackBar(SnackBar(content: Text("Error fetching categories: $e")));
+        message: "Error fetching categories: $e",
+        type: SnackType.error,
+      );
     }
   }
 
@@ -111,9 +117,12 @@ class _AddItemPageState extends State<AddItemPage> {
 
   Future<void> addItem() async {
     if (hotelID == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Hotel not found. Please login again")),
+      AppSnackBar.show(
+        context,
+        message: "Hotel not found. Please login again",
+        type: SnackType.error,
       );
+
       return;
     }
 
@@ -121,11 +130,12 @@ class _AddItemPageState extends State<AddItemPage> {
         _priceController.text.isEmpty ||
         selectedCategoryID == null ||
         _imageBytes == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text("Fill all required fields and select an image"),
-        ),
+      AppSnackBar.show(
+        context,
+        message: "Fill all required fields and select an image",
+        type: SnackType.error,
       );
+
       return;
     }
 
@@ -174,14 +184,15 @@ class _AddItemPageState extends State<AddItemPage> {
         'imageUrl': 'items/$newItemID.jpg',
       });
 
-      ScaffoldMessenger.of(
+      AppSnackBar.show(
         context,
-      ).showSnackBar(const SnackBar(content: Text("Item added successfully")));
+        message: "Item added successfully",
+        type: SnackType.success,
+      );
+
       Navigator.pop(context);
     } catch (e) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text("Error: $e")));
+      AppSnackBar.show(context, message: "Error: $e", type: SnackType.error);
     }
   }
 

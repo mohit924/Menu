@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:menu_scan_web/Admin_Pannel/widgets/common_header.dart';
 import 'package:menu_scan_web/Custom/App_colors.dart';
+import 'package:menu_scan_web/Custom/app_snackbar.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class AddCategoryPage extends StatefulWidget {
@@ -26,9 +27,12 @@ class _AddCategoryPageState extends State<AddCategoryPage> {
     final savedHotelID = prefs.getString('hotelID');
 
     if (savedHotelID == null || savedHotelID.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Session expired. Please login again.")),
+      AppSnackBar.show(
+        context,
+        message: "Session expired. Please login again.",
+        type: SnackType.error,
       );
+
       Navigator.pop(context);
       return;
     }
@@ -42,16 +46,22 @@ class _AddCategoryPageState extends State<AddCategoryPage> {
     final categoryName = _nameController.text.trim();
 
     if (categoryName.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Please enter category name")),
+      AppSnackBar.show(
+        context,
+        message: "Please enter category name",
+        type: SnackType.error,
       );
+
       return;
     }
 
     if (hotelID == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Hotel not found. Please login again.")),
+      AppSnackBar.show(
+        context,
+        message: "Hotel not found. Please login again.",
+        type: SnackType.error,
       );
+
       return;
     }
 
@@ -80,16 +90,15 @@ class _AddCategoryPageState extends State<AddCategoryPage> {
           'createdAt': Timestamp.now(),
         });
       });
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Category added successfully!")),
+      AppSnackBar.show(
+        context,
+        message: "Category added successfully!",
+        type: SnackType.success,
       );
 
       Navigator.pop(context);
     } catch (e) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text("Error: $e")));
+      AppSnackBar.show(context, message: "Error: $e", type: SnackType.error);
     }
   }
 

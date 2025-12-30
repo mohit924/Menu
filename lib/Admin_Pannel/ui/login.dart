@@ -4,6 +4,7 @@ import 'package:menu_scan_web/Admin_Pannel/ui/Dashboard.dart';
 import 'package:menu_scan_web/Admin_Pannel/ui/forgot_password.dart';
 import 'package:menu_scan_web/Admin_Pannel/ui/sign_up.dart';
 import 'package:menu_scan_web/Custom/App_colors.dart';
+import 'package:menu_scan_web/Custom/app_snackbar.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class LoginPage extends StatefulWidget {
@@ -24,9 +25,12 @@ class _LoginPageState extends State<LoginPage> {
     final password = _passwordController.text.trim();
 
     if (mobile.isEmpty || password.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Please enter mobile and password")),
+      AppSnackBar.show(
+        context,
+        message: "Please enter mobile and password",
+        type: SnackType.error,
       );
+
       return;
     }
 
@@ -44,10 +48,11 @@ class _LoginPageState extends State<LoginPage> {
         // Save hotelID in shared preferences
         final prefs = await SharedPreferences.getInstance();
         await prefs.setString('hotelID', hotelID);
-
-        ScaffoldMessenger.of(
+        AppSnackBar.show(
           context,
-        ).showSnackBar(const SnackBar(content: Text("Login successful!")));
+          message: "Login successful!",
+          type: SnackType.success,
+        );
 
         // Navigate to dashboard
         Navigator.pushReplacement(
@@ -55,14 +60,14 @@ class _LoginPageState extends State<LoginPage> {
           MaterialPageRoute(builder: (_) => const AdminDashboardPage()),
         );
       } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text("Invalid mobile number or password")),
+        AppSnackBar.show(
+          context,
+          message: "Invalid mobile number or password",
+          type: SnackType.error,
         );
       }
     } catch (e) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text("Error: $e")));
+      AppSnackBar.show(context, message: "Error: $e", type: SnackType.error);
     }
   }
 

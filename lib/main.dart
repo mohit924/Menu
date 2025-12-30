@@ -50,8 +50,8 @@ class MyApp extends StatelessWidget {
     } else if (savedHotelID != null && savedHotelID!.isNotEmpty) {
       home = AdminDashboardPage();
     } else {
-      // home = const LoginPage();
-      home = MenuScreen(hotelID: "UFKH", tableID: "2");
+      home = const LoginPage();
+      // home = MenuScreen(hotelID: "UFKH", tableID: "2");
     }
 
     return MaterialApp(

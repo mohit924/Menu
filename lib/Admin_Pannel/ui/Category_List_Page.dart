@@ -6,6 +6,7 @@ import 'package:menu_scan_web/Admin_Pannel/ui/Edit_Category_Page.dart';
 import 'package:menu_scan_web/Admin_Pannel/ui/Item_List_Page.dart';
 import 'package:menu_scan_web/Admin_Pannel/widgets/common_header.dart';
 import 'package:menu_scan_web/Custom/App_colors.dart';
+import 'package:menu_scan_web/Custom/app_snackbar.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class CategoryListPage extends StatefulWidget {
@@ -30,9 +31,12 @@ class _CategoryListPageState extends State<CategoryListPage> {
     final savedHotelID = prefs.getString('hotelID');
 
     if (savedHotelID == null || savedHotelID.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Session expired. Please login again")),
+      AppSnackBar.show(
+        context,
+        message: "Session expired. Please login again",
+        type: SnackType.error,
       );
+
       Navigator.pop(context);
       return;
     }
@@ -245,25 +249,18 @@ class _CategoryListPageState extends State<CategoryListPage> {
                                                     .collection('AddCategory')
                                                     .doc(categoryId)
                                                     .delete();
-
-                                                ScaffoldMessenger.of(
+                                                AppSnackBar.show(
                                                   context,
-                                                ).showSnackBar(
-                                                  const SnackBar(
-                                                    content: Text(
+                                                  message:
                                                       "Category and all items deleted",
-                                                    ),
-                                                  ),
+                                                  type: SnackType.success,
                                                 );
                                               } catch (e) {
-                                                ScaffoldMessenger.of(
+                                                AppSnackBar.show(
                                                   context,
-                                                ).showSnackBar(
-                                                  SnackBar(
-                                                    content: Text(
-                                                      "Error deleting category: $e",
-                                                    ),
-                                                  ),
+                                                  message:
+                                                      "CatError deleting category: $e",
+                                                  type: SnackType.error,
                                                 );
                                               }
                                             },

@@ -5,6 +5,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:menu_scan_web/Admin_Pannel/widgets/common_header.dart';
 import 'package:menu_scan_web/Custom/App_colors.dart';
+import 'package:menu_scan_web/Custom/app_snackbar.dart';
 
 class EditItemPage extends StatefulWidget {
   final String itemDocId;
@@ -109,9 +110,11 @@ class _EditItemPageState extends State<EditItemPage> {
     if (_nameController.text.isEmpty ||
         _priceController.text.isEmpty ||
         selectedCategoryID == null) {
-      ScaffoldMessenger.of(
+      AppSnackBar.show(
         context,
-      ).showSnackBar(const SnackBar(content: Text("Fill all required fields")));
+        message: "Fill all required fields",
+        type: SnackType.error,
+      );
       return;
     }
 
@@ -138,16 +141,15 @@ class _EditItemPageState extends State<EditItemPage> {
         'available': true,
         'imageUrl': imagePath,
       });
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Item updated successfully")),
+      AppSnackBar.show(
+        context,
+        message: "Item updated successfully",
+        type: SnackType.success,
       );
 
       Navigator.pop(context);
     } catch (e) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text("Error: $e")));
+      AppSnackBar.show(context, message: "Error: $e", type: SnackType.error);
     }
   }
 

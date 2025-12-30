@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:menu_scan_web/Admin_Pannel/ui/login.dart';
+import 'package:menu_scan_web/Custom/app_snackbar.dart';
 import 'package:pretty_qr_code/pretty_qr_code.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:share_plus/share_plus.dart';
@@ -90,15 +91,13 @@ class _GenerateQrState extends State<GenerateQr> {
 
         debugPrint("Generated QR URL: $url");
       });
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("QR generated! Check console for link.")),
-      );
     } catch (e) {
       debugPrint("Error generating QR: $e");
-      ScaffoldMessenger.of(
+      AppSnackBar.show(
         context,
-      ).showSnackBar(SnackBar(content: Text("Error generating QR: $e")));
+        message: "Error generating QR: $e",
+        type: SnackType.error,
+      );
     }
   }
 
@@ -132,15 +131,19 @@ class _GenerateQrState extends State<GenerateQr> {
         final directory = await getApplicationDocumentsDirectory();
         final file = File('${directory.path}/$fileName');
         await file.writeAsBytes(pngBytes);
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('QR code downloaded: ${file.path}')),
+        AppSnackBar.show(
+          context,
+          message: 'QR code downloaded: ${file.path}',
+          type: SnackType.success,
         );
       }
     } catch (e) {
       debugPrint("Error downloading QR: $e");
-      ScaffoldMessenger.of(
+      AppSnackBar.show(
         context,
-      ).showSnackBar(SnackBar(content: Text('Error downloading QR: $e')));
+        message: 'Error downloading QR: $e',
+        type: SnackType.success,
+      );
     }
   }
 

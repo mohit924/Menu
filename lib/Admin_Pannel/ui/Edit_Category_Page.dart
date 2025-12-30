@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:menu_scan_web/Admin_Pannel/widgets/common_header.dart';
 import 'package:menu_scan_web/Custom/App_colors.dart';
+import 'package:menu_scan_web/Custom/app_snackbar.dart';
 
 class EditCategoryPage extends StatefulWidget {
   final String categoryId;
@@ -32,9 +33,12 @@ class _EditCategoryPageState extends State<EditCategoryPage> {
   void updateCategory() async {
     final newName = _nameController.text.trim();
     if (newName.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Category name cannot be empty")),
+      AppSnackBar.show(
+        context,
+        message: "Category name cannot be empty",
+        type: SnackType.error,
       );
+
       return;
     }
 
@@ -42,16 +46,19 @@ class _EditCategoryPageState extends State<EditCategoryPage> {
       await _firestore.collection('AddCategory').doc(widget.categoryId).update({
         'categoryName': newName,
       });
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Category updated successfully!")),
+      AppSnackBar.show(
+        context,
+        message: "Category updated successfully!",
+        type: SnackType.success,
       );
 
       Navigator.pop(context);
     } catch (e) {
-      ScaffoldMessenger.of(
+      AppSnackBar.show(
         context,
-      ).showSnackBar(SnackBar(content: Text("Error updating category: $e")));
+        message: "Error updating category: $e",
+        type: SnackType.error,
+      );
     }
   }
 

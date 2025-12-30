@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:menu_scan_web/Admin_Pannel/ui/reset_password.dart';
 import 'package:menu_scan_web/Custom/App_colors.dart';
+import 'package:menu_scan_web/Custom/app_snackbar.dart';
 
 class ForgotPasswordPage extends StatefulWidget {
   const ForgotPasswordPage({Key? key}) : super(key: key);
@@ -19,9 +20,12 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
     final phone = _phoneController.text.trim();
 
     if (phone.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Please enter phone number")),
+      AppSnackBar.show(
+        context,
+        message: "Please enter phone number",
+        type: SnackType.error,
       );
+
       return;
     }
 
@@ -40,14 +44,14 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
           ),
         );
       } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text("Phone number not registered")),
+        AppSnackBar.show(
+          context,
+          message: "Phone number not registered",
+          type: SnackType.error,
         );
       }
     } catch (e) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text("Error: $e")));
+      AppSnackBar.show(context, message: "Error: $e", type: SnackType.error);
     }
   }
 

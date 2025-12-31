@@ -72,8 +72,7 @@ class LanguageBottomSheet {
     required Function(String code, String name) onSelected,
   }) {
     final langProvider = context.watch<LanguageProvider>();
-    final isSelected =
-        langProvider.code == code; // check if this language is selected
+    final isSelected = langProvider.code == code;
 
     return ListTile(
       leading: const Icon(Icons.translate, color: AppColors.LightGreyColor),

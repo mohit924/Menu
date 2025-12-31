@@ -3,8 +3,8 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/services.dart';
 import 'package:menu_scan_web/Admin_Pannel/ui/login.dart';
 import 'package:menu_scan_web/Custom/App_colors.dart';
+import 'package:menu_scan_web/Custom/app_loader.dart';
 import 'dart:math';
-
 import 'package:menu_scan_web/Custom/app_snackbar.dart';
 
 class SignUpPage extends StatefulWidget {
@@ -20,6 +20,7 @@ class _SignUpPageState extends State<SignUpPage> {
   final TextEditingController _passwordController = TextEditingController();
   bool _obscurePassword = true;
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  bool _isLoading = false; // loader flag
 
   // Generate random 4-letter ID
   String _generateRandomID() {
@@ -63,6 +64,8 @@ class _SignUpPageState extends State<SignUpPage> {
       return;
     }
 
+    setState(() => _isLoading = true); // show loader
+
     try {
       final phoneQuery = await _firestore
           .collection('AdminSignUp')
@@ -75,6 +78,7 @@ class _SignUpPageState extends State<SignUpPage> {
           message: "Phone number already registered!",
           type: SnackType.error,
         );
+        setState(() => _isLoading = false);
         return;
       }
 
@@ -100,10 +104,12 @@ class _SignUpPageState extends State<SignUpPage> {
 
       Navigator.pushReplacement(
         context,
-        MaterialPageRoute(builder: (context) => const LoginPage()),
+        MaterialPageRoute(builder: (_) => const LoginPage()),
       );
     } catch (e) {
       AppSnackBar.show(context, message: "Error: $e", type: SnackType.error);
+    } finally {
+      setState(() => _isLoading = false); // hide loader
     }
   }
 
@@ -157,16 +163,11 @@ class _SignUpPageState extends State<SignUpPage> {
                       ),
                     ),
                     const SizedBox(height: 16),
-
-                    // Inside your TextField
                     TextField(
                       controller: _phoneController,
                       keyboardType: TextInputType.phone,
-                      maxLength: 13, // limit input to 13 digits
-                      inputFormatters: [
-                        FilteringTextInputFormatter
-                            .digitsOnly, // allow only numbers
-                      ],
+                      maxLength: 13,
+                      inputFormatters: [FilteringTextInputFormatter.digitsOnly],
                       decoration: InputDecoration(
                         labelText: "Phone Number",
                         labelStyle: const TextStyle(
@@ -183,11 +184,8 @@ class _SignUpPageState extends State<SignUpPage> {
                         ),
                         counterText: '${_phoneController.text.length}',
                       ),
-                      onChanged: (_) {
-                        setState(() {});
-                      },
+                      onChanged: (_) => setState(() {}),
                     ),
-
                     const SizedBox(height: 16),
                     TextField(
                       controller: _passwordController,
@@ -213,11 +211,9 @@ class _SignUpPageState extends State<SignUpPage> {
                                 : Icons.visibility_off,
                             color: AppColors.LightGreyColor,
                           ),
-                          onPressed: () {
-                            setState(() {
-                              _obscurePassword = !_obscurePassword;
-                            });
-                          },
+                          onPressed: () => setState(
+                            () => _obscurePassword = !_obscurePassword,
+                          ),
                         ),
                       ),
                     ),
@@ -245,9 +241,7 @@ class _SignUpPageState extends State<SignUpPage> {
                     ),
                     const SizedBox(height: 16),
                     TextButton(
-                      onPressed: () {
-                        Navigator.pop(context);
-                      },
+                      onPressed: () => Navigator.pop(context),
                       child: const Text(
                         "Already have an account? Login",
                         style: TextStyle(color: AppColors.OrangeColor),
@@ -258,6 +252,9 @@ class _SignUpPageState extends State<SignUpPage> {
               ),
             ),
           ),
+          // Loader overlay
+          if (_isLoading)
+            Positioned.fill(child: AppLoaderWidget(message: "Signing up...")),
         ],
       ),
     );

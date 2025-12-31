@@ -4,6 +4,7 @@ import 'package:menu_scan_web/Admin_Pannel/ui/Dashboard.dart';
 import 'package:menu_scan_web/Admin_Pannel/ui/login.dart';
 import 'package:menu_scan_web/Admin_Pannel/widgets/common_header.dart';
 import 'package:menu_scan_web/Custom/App_colors.dart';
+import 'package:menu_scan_web/Custom/app_loader.dart';
 import 'package:menu_scan_web/Custom/app_snackbar.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -23,11 +24,11 @@ class _UpdateProfilePageState extends State<UpdateProfilePage> {
   String? hotelID;
   String? docId;
   bool _obscurePassword = true;
+  bool _isLoading = false; // loader flag
 
   @override
   void initState() {
     super.initState();
-    _loadProfile();
     _loadHotelID();
   }
 
@@ -86,12 +87,12 @@ class _UpdateProfilePageState extends State<UpdateProfilePage> {
         message: "Please fill all fields",
         type: SnackType.error,
       );
-
       return;
     }
 
     if (docId == null) return;
 
+    setState(() => _isLoading = true); // show loader
     try {
       await _firestore.collection('AdminSignUp').doc(docId).update({
         'hotelName': _hotelNameController.text.trim(),
@@ -115,12 +116,13 @@ class _UpdateProfilePageState extends State<UpdateProfilePage> {
         message: "Error updating profile: $e",
         type: SnackType.error,
       );
+    } finally {
+      setState(() => _isLoading = false); // hide loader
     }
   }
 
   Future<void> _logout() async {
     final prefs = await SharedPreferences.getInstance();
-
     await prefs.remove('hotelID');
 
     Navigator.pushReplacement(
@@ -135,93 +137,101 @@ class _UpdateProfilePageState extends State<UpdateProfilePage> {
 
     return Scaffold(
       backgroundColor: AppColors.primaryBackground,
-      body: Column(
+      body: Stack(
         children: [
-          const SizedBox(height: 25),
-          const CommonHeader(showSearchBar: false, currentPage: ""),
-          Expanded(
-            child: Center(
-              child: SingleChildScrollView(
-                child: Container(
-                  width: screenWidth > 600 ? 500 : screenWidth * 0.9,
-                  padding: const EdgeInsets.all(24),
-                  decoration: BoxDecoration(
-                    color: AppColors.secondaryBackground,
-                    borderRadius: BorderRadius.circular(16),
-                  ),
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      const Text(
-                        "Update Profile",
-                        style: TextStyle(
-                          color: AppColors.whiteColor,
-                          fontSize: 24,
-                          fontWeight: FontWeight.bold,
-                        ),
+          Column(
+            children: [
+              const SizedBox(height: 25),
+              const CommonHeader(showSearchBar: false, currentPage: ""),
+              Expanded(
+                child: Center(
+                  child: SingleChildScrollView(
+                    child: Container(
+                      width: screenWidth > 600 ? 500 : screenWidth * 0.9,
+                      padding: const EdgeInsets.all(24),
+                      decoration: BoxDecoration(
+                        color: AppColors.secondaryBackground,
+                        borderRadius: BorderRadius.circular(16),
                       ),
-                      const SizedBox(height: 24),
-                      _inputField(_hotelNameController, "Hotel Name"),
-                      const SizedBox(height: 16),
-                      _inputField(
-                        _mobileController,
-                        "Mobile Number",
-                        keyboardType: TextInputType.phone,
-                      ),
-                      const SizedBox(height: 16),
-                      _passwordField(_passwordController, "Password"),
-                      const SizedBox(height: 24),
-                      SizedBox(
-                        width: double.infinity,
-                        height: 48,
-                        child: ElevatedButton(
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: AppColors.OrangeColor,
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                          ),
-                          onPressed: _updateProfile,
-                          child: const Text(
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Text(
                             "Update Profile",
                             style: TextStyle(
-                              fontSize: 16,
                               color: AppColors.whiteColor,
+                              fontSize: 24,
                               fontWeight: FontWeight.bold,
                             ),
                           ),
-                        ),
-                      ),
-                      const SizedBox(height: 16),
-                      SizedBox(
-                        width: double.infinity,
-                        height: 48,
-                        child: OutlinedButton(
-                          style: OutlinedButton.styleFrom(
-                            side: const BorderSide(
-                              color: AppColors.OrangeColor,
-                            ),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(12),
+                          const SizedBox(height: 24),
+                          _inputField(_hotelNameController, "Hotel Name"),
+                          const SizedBox(height: 16),
+                          _inputField(
+                            _mobileController,
+                            "Mobile Number",
+                            keyboardType: TextInputType.phone,
+                          ),
+                          const SizedBox(height: 16),
+                          _passwordField(_passwordController, "Password"),
+                          const SizedBox(height: 24),
+                          SizedBox(
+                            width: double.infinity,
+                            height: 48,
+                            child: ElevatedButton(
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: AppColors.OrangeColor,
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                              ),
+                              onPressed: _updateProfile,
+                              child: const Text(
+                                "Update Profile",
+                                style: TextStyle(
+                                  fontSize: 16,
+                                  color: AppColors.whiteColor,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
                             ),
                           ),
-                          onPressed: _logout,
-                          child: const Text(
-                            "Logout",
-                            style: TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.bold,
-                              color: AppColors.OrangeColor,
+                          const SizedBox(height: 16),
+                          SizedBox(
+                            width: double.infinity,
+                            height: 48,
+                            child: OutlinedButton(
+                              style: OutlinedButton.styleFrom(
+                                side: const BorderSide(
+                                  color: AppColors.OrangeColor,
+                                ),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                              ),
+                              onPressed: _logout,
+                              child: const Text(
+                                "Logout",
+                                style: TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.bold,
+                                  color: AppColors.OrangeColor,
+                                ),
+                              ),
                             ),
                           ),
-                        ),
+                        ],
                       ),
-                    ],
+                    ),
                   ),
                 ),
               ),
-            ),
+            ],
           ),
+          if (_isLoading)
+            const Positioned.fill(
+              child: AppLoaderWidget(message: "Updating profile..."),
+            ),
         ],
       ),
     );

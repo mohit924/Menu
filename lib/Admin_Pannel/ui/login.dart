@@ -4,6 +4,7 @@ import 'package:menu_scan_web/Admin_Pannel/ui/Dashboard.dart';
 import 'package:menu_scan_web/Admin_Pannel/ui/forgot_password.dart';
 import 'package:menu_scan_web/Admin_Pannel/ui/sign_up.dart';
 import 'package:menu_scan_web/Custom/App_colors.dart';
+import 'package:menu_scan_web/Custom/app_loader.dart';
 import 'package:menu_scan_web/Custom/app_snackbar.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -19,6 +20,7 @@ class _LoginPageState extends State<LoginPage> {
   final TextEditingController _passwordController = TextEditingController();
   bool _obscurePassword = true;
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  bool _isLoading = false; // loader flag
 
   void login() async {
     final mobile = _mobileController.text.trim();
@@ -30,9 +32,10 @@ class _LoginPageState extends State<LoginPage> {
         message: "Please enter mobile and password",
         type: SnackType.error,
       );
-
       return;
     }
+
+    setState(() => _isLoading = true); // show loader
 
     try {
       final querySnapshot = await _firestore
@@ -42,19 +45,17 @@ class _LoginPageState extends State<LoginPage> {
           .get();
 
       if (querySnapshot.docs.isNotEmpty) {
-        // Extract hotelID
         final hotelID = querySnapshot.docs.first['hotelID'] ?? '';
 
-        // Save hotelID in shared preferences
         final prefs = await SharedPreferences.getInstance();
         await prefs.setString('hotelID', hotelID);
+
         AppSnackBar.show(
           context,
           message: "Login successful!",
           type: SnackType.success,
         );
 
-        // Navigate to dashboard
         Navigator.pushReplacement(
           context,
           MaterialPageRoute(builder: (_) => const AdminDashboardPage()),
@@ -68,6 +69,8 @@ class _LoginPageState extends State<LoginPage> {
       }
     } catch (e) {
       AppSnackBar.show(context, message: "Error: $e", type: SnackType.error);
+    } finally {
+      setState(() => _isLoading = false); // hide loader
     }
   }
 
@@ -78,7 +81,6 @@ class _LoginPageState extends State<LoginPage> {
     return Scaffold(
       body: Stack(
         children: [
-          // Background Image
           Positioned.fill(
             child: Image.asset("assets/pre_login_bg.png", fit: BoxFit.cover),
           ),
@@ -90,13 +92,6 @@ class _LoginPageState extends State<LoginPage> {
                 decoration: BoxDecoration(
                   color: AppColors.whiteColor,
                   borderRadius: BorderRadius.circular(16),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withOpacity(0.3),
-                      blurRadius: 20,
-                      offset: const Offset(0, 5),
-                    ),
-                  ],
                 ),
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
@@ -110,7 +105,6 @@ class _LoginPageState extends State<LoginPage> {
                       ),
                     ),
                     const SizedBox(height: 24),
-                    // Mobile number field
                     TextField(
                       controller: _mobileController,
                       keyboardType: TextInputType.phone,
@@ -131,7 +125,6 @@ class _LoginPageState extends State<LoginPage> {
                       ),
                     ),
                     const SizedBox(height: 16),
-                    // Password field
                     TextField(
                       controller: _passwordController,
                       obscureText: _obscurePassword,
@@ -156,11 +149,9 @@ class _LoginPageState extends State<LoginPage> {
                                 : Icons.visibility_off,
                             color: AppColors.LightGreyColor,
                           ),
-                          onPressed: () {
-                            setState(() {
-                              _obscurePassword = !_obscurePassword;
-                            });
-                          },
+                          onPressed: () => setState(
+                            () => _obscurePassword = !_obscurePassword,
+                          ),
                         ),
                       ),
                     ),
@@ -222,6 +213,11 @@ class _LoginPageState extends State<LoginPage> {
               ),
             ),
           ),
+          // Loader overlay
+          if (_isLoading)
+            const Positioned.fill(
+              child: AppLoaderWidget(message: "Logging in..."),
+            ),
         ],
       ),
     );

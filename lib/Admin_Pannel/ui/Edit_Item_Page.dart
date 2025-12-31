@@ -2,9 +2,11 @@ import 'dart:typed_data';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter/services.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:menu_scan_web/Admin_Pannel/widgets/common_header.dart';
 import 'package:menu_scan_web/Custom/App_colors.dart';
+import 'package:menu_scan_web/Custom/app_loader.dart';
 import 'package:menu_scan_web/Custom/app_snackbar.dart';
 
 class EditItemPage extends StatefulWidget {
@@ -49,6 +51,7 @@ class _EditItemPageState extends State<EditItemPage> {
   bool _isVeg = false;
   bool _isNonVeg = false;
 
+  bool _isLoading = false; // loader flag
   List<Map<String, dynamic>> categories = [];
 
   @override
@@ -118,6 +121,7 @@ class _EditItemPageState extends State<EditItemPage> {
       return;
     }
 
+    setState(() => _isLoading = true);
     try {
       String? imagePath = widget.image;
 
@@ -141,6 +145,7 @@ class _EditItemPageState extends State<EditItemPage> {
         'available': true,
         'imageUrl': imagePath,
       });
+
       AppSnackBar.show(
         context,
         message: "Item updated successfully",
@@ -150,6 +155,8 @@ class _EditItemPageState extends State<EditItemPage> {
       Navigator.pop(context);
     } catch (e) {
       AppSnackBar.show(context, message: "Error: $e", type: SnackType.error);
+    } finally {
+      setState(() => _isLoading = false);
     }
   }
 
@@ -159,244 +166,262 @@ class _EditItemPageState extends State<EditItemPage> {
 
     return Scaffold(
       backgroundColor: AppColors.primaryBackground,
-      body: Column(
+      body: Stack(
         children: [
-          const SizedBox(height: 25),
-          const CommonHeader(showSearchBar: false, currentPage: "Items"),
-          const SizedBox(height: 25),
-          Expanded(
-            child: Center(
-              child: SingleChildScrollView(
-                child: Container(
-                  width: screenWidth > 600 ? 500 : screenWidth * 0.9,
-                  padding: const EdgeInsets.all(24),
-                  decoration: BoxDecoration(
-                    color: AppColors.secondaryBackground,
-                    borderRadius: BorderRadius.circular(16),
-                  ),
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      const Text(
-                        "Edit Item",
-                        style: TextStyle(
-                          color: AppColors.whiteColor,
-                          fontSize: 24,
-                          fontWeight: FontWeight.bold,
-                        ),
+          Column(
+            children: [
+              const SizedBox(height: 25),
+              const CommonHeader(showSearchBar: false, currentPage: "Items"),
+              const SizedBox(height: 25),
+              Expanded(
+                child: Center(
+                  child: SingleChildScrollView(
+                    child: Container(
+                      width: screenWidth > 600 ? 500 : screenWidth * 0.9,
+                      padding: const EdgeInsets.all(24),
+                      decoration: BoxDecoration(
+                        color: AppColors.secondaryBackground,
+                        borderRadius: BorderRadius.circular(16),
                       ),
-                      const SizedBox(height: 24),
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Text(
+                            "Edit Item",
+                            style: TextStyle(
+                              color: AppColors.whiteColor,
+                              fontSize: 24,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          const SizedBox(height: 24),
+                          // CATEGORY DROPDOWN
+                          DropdownButtonFormField<int>(
+                            dropdownColor: AppColors.secondaryBackground,
+                            value: selectedCategoryID,
+                            decoration: _inputDecoration("Select Category"),
+                            items: categories.map((cat) {
+                              return DropdownMenuItem<int>(
+                                value: cat['categoryID'],
+                                child: Text(
+                                  cat['categoryName'],
+                                  style: const TextStyle(
+                                    color: AppColors.whiteColor,
+                                  ),
+                                ),
+                              );
+                            }).toList(),
+                            onChanged: (val) {
+                              final selected = categories.firstWhere(
+                                (c) => c['categoryID'] == val,
+                              );
+                              setState(() {
+                                selectedCategoryID = val;
+                                selectedCategoryName = selected['categoryName'];
+                              });
+                            },
+                          ),
+                          const SizedBox(height: 16),
+                          _inputField(_nameController, "Item Name"),
+                          const SizedBox(height: 16),
+                          _inputField(
+                            _priceController,
+                            "Price",
+                            keyboardType: TextInputType.number,
+                            inputFormatters: [
+                              FilteringTextInputFormatter.digitsOnly,
+                            ], // ✅ only digits
+                          ),
 
-                      // CATEGORY DROPDOWN
-                      DropdownButtonFormField<int>(
-                        dropdownColor: AppColors.secondaryBackground,
-                        value: selectedCategoryID,
-                        decoration: _inputDecoration("Select Category"),
-                        items: categories.map((cat) {
-                          return DropdownMenuItem<int>(
-                            value: cat['categoryID'],
-                            child: Text(
-                              cat['categoryName'],
-                              style: const TextStyle(
-                                color: AppColors.whiteColor,
+                          const SizedBox(height: 16),
+                          _inputField(
+                            _descriptionController,
+                            "Description",
+                            maxLines: 3,
+                          ),
+                          const SizedBox(height: 16),
+                          // IMAGE PICKER + DISPLAY
+                          GestureDetector(
+                            onTap: _pickImage,
+                            child: Container(
+                              height: 160,
+                              width: double.infinity,
+                              decoration: BoxDecoration(
+                                borderRadius: BorderRadius.circular(12),
+                                border: Border.all(
+                                  color: AppColors.LightGreyColor,
+                                ),
+                                color: Colors.black12,
+                              ),
+                              child: _imageBytes != null
+                                  ? ClipRRect(
+                                      borderRadius: BorderRadius.circular(12),
+                                      child: Image.memory(
+                                        _imageBytes!,
+                                        fit: BoxFit.cover,
+                                        width: double.infinity,
+                                        height: 160,
+                                      ),
+                                    )
+                                  : FutureBuilder<String?>(
+                                      future: _imageFuture,
+                                      builder: (context, snapshot) {
+                                        if (snapshot.connectionState ==
+                                            ConnectionState.waiting) {
+                                          return Container(
+                                            color: Colors.grey.shade800,
+                                          );
+                                        } else if (snapshot.hasError ||
+                                            snapshot.data == null) {
+                                          return Column(
+                                            mainAxisAlignment:
+                                                MainAxisAlignment.center,
+                                            children: const [
+                                              Icon(
+                                                Icons.add_a_photo,
+                                                size: 40,
+                                                color: AppColors.LightGreyColor,
+                                              ),
+                                              SizedBox(height: 8),
+                                              Text(
+                                                "Upload Item Image",
+                                                style: TextStyle(
+                                                  color:
+                                                      AppColors.LightGreyColor,
+                                                ),
+                                              ),
+                                            ],
+                                          );
+                                        } else {
+                                          return ClipRRect(
+                                            borderRadius: BorderRadius.circular(
+                                              12,
+                                            ),
+                                            child: Image.network(
+                                              snapshot.data!,
+                                              fit: BoxFit.cover,
+                                              width: double.infinity,
+                                              height: 160,
+                                            ),
+                                          );
+                                        }
+                                      },
+                                    ),
+                            ),
+                          ),
+                          const SizedBox(height: 24),
+                          // Veg / Non-Veg
+                          Row(
+                            children: [
+                              Row(
+                                children: [
+                                  Checkbox(
+                                    value: _isVeg,
+                                    onChanged: (v) {
+                                      setState(() {
+                                        _isVeg = v!;
+                                        _isNonVeg = false;
+                                      });
+                                    },
+                                    activeColor: AppColors.OrangeColor,
+                                    checkColor: Colors.white,
+                                  ),
+                                  const SizedBox(width: 4),
+                                  const Text(
+                                    "Veg",
+                                    style: TextStyle(
+                                      color: AppColors.whiteColor,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(width: 16),
+                              Row(
+                                children: [
+                                  Checkbox(
+                                    value: _isNonVeg,
+                                    onChanged: (v) {
+                                      setState(() {
+                                        _isNonVeg = v!;
+                                        _isVeg = false;
+                                      });
+                                    },
+                                    activeColor: AppColors.OrangeColor,
+                                    checkColor: Colors.white,
+                                  ),
+                                  const SizedBox(width: 4),
+                                  const Text(
+                                    "Non-Veg",
+                                    style: TextStyle(
+                                      color: AppColors.whiteColor,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 24),
+                          // Update Button
+                          SizedBox(
+                            width: double.infinity,
+                            height: 48,
+                            child: ElevatedButton(
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: AppColors.OrangeColor,
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                              ),
+                              onPressed: updateItem,
+                              child: const Text(
+                                "Update Item",
+                                style: TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.bold,
+                                  color: AppColors.whiteColor,
+                                ),
                               ),
                             ),
-                          );
-                        }).toList(),
-                        onChanged: (val) {
-                          final selected = categories.firstWhere(
-                            (c) => c['categoryID'] == val,
-                          );
-                          setState(() {
-                            selectedCategoryID = val;
-                            selectedCategoryName = selected['categoryName'];
-                          });
-                        },
-                      ),
-                      const SizedBox(height: 16),
-                      _inputField(_nameController, "Item Name"),
-                      const SizedBox(height: 16),
-                      _inputField(
-                        _priceController,
-                        "Price",
-                        keyboardType: TextInputType.number,
-                      ),
-                      const SizedBox(height: 16),
-                      _inputField(
-                        _descriptionController,
-                        "Description",
-                        maxLines: 3,
-                      ),
-                      const SizedBox(height: 16),
-
-                      // IMAGE PICKER + DISPLAY
-                      GestureDetector(
-                        onTap: _pickImage,
-                        child: Container(
-                          height: 160,
-                          width: double.infinity,
-                          decoration: BoxDecoration(
-                            borderRadius: BorderRadius.circular(12),
-                            border: Border.all(color: AppColors.LightGreyColor),
-                            color: Colors.black12,
                           ),
-                          child: _imageBytes != null
-                              ? ClipRRect(
-                                  borderRadius: BorderRadius.circular(12),
-                                  child: Image.memory(
-                                    _imageBytes!,
-                                    fit: BoxFit.cover,
-                                    width: double.infinity,
-                                    height: 160,
-                                  ),
-                                )
-                              : FutureBuilder<String?>(
-                                  future: _imageFuture,
-                                  builder: (context, snapshot) {
-                                    if (snapshot.connectionState ==
-                                        ConnectionState.waiting) {
-                                      return Container(
-                                        color: Colors.grey.shade800,
-                                      );
-                                    } else if (snapshot.hasError ||
-                                        snapshot.data == null) {
-                                      return Column(
-                                        mainAxisAlignment:
-                                            MainAxisAlignment.center,
-                                        children: const [
-                                          Icon(
-                                            Icons.add_a_photo,
-                                            size: 40,
-                                            color: AppColors.LightGreyColor,
-                                          ),
-                                          SizedBox(height: 8),
-                                          Text(
-                                            "Upload Item Image",
-                                            style: TextStyle(
-                                              color: AppColors.LightGreyColor,
-                                            ),
-                                          ),
-                                        ],
-                                      );
-                                    } else {
-                                      return ClipRRect(
-                                        borderRadius: BorderRadius.circular(12),
-                                        child: Image.network(
-                                          snapshot.data!,
-                                          fit: BoxFit.cover,
-                                          width: double.infinity,
-                                          height: 160,
-                                        ),
-                                      );
-                                    }
-                                  },
+                          const SizedBox(height: 12),
+                          // Cancel Button
+                          SizedBox(
+                            width: double.infinity,
+                            height: 48,
+                            child: OutlinedButton(
+                              style: OutlinedButton.styleFrom(
+                                side: const BorderSide(
+                                  color: AppColors.OrangeColor,
                                 ),
-                        ),
-                      ),
-                      const SizedBox(height: 24),
-
-                      // Veg / Non-Veg
-                      Row(
-                        children: [
-                          Row(
-                            children: [
-                              Checkbox(
-                                value: _isVeg,
-                                onChanged: (v) {
-                                  setState(() {
-                                    _isVeg = v!;
-                                    _isNonVeg = false;
-                                  });
-                                },
-                                activeColor: AppColors.OrangeColor,
-                                checkColor: Colors.white,
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
                               ),
-                              const SizedBox(width: 4),
-                              const Text(
-                                "Veg",
-                                style: TextStyle(color: AppColors.whiteColor),
+                              onPressed: () => Navigator.pop(context),
+                              child: const Text(
+                                "Cancel",
+                                style: TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.bold,
+                                  color: AppColors.OrangeColor,
+                                ),
                               ),
-                            ],
-                          ),
-                          const SizedBox(width: 16),
-                          Row(
-                            children: [
-                              Checkbox(
-                                value: _isNonVeg,
-                                onChanged: (v) {
-                                  setState(() {
-                                    _isNonVeg = v!;
-                                    _isVeg = false;
-                                  });
-                                },
-                                activeColor: AppColors.OrangeColor,
-                                checkColor: Colors.white,
-                              ),
-                              const SizedBox(width: 4),
-                              const Text(
-                                "Non-Veg",
-                                style: TextStyle(color: AppColors.whiteColor),
-                              ),
-                            ],
+                            ),
                           ),
                         ],
                       ),
-                      const SizedBox(height: 24),
-
-                      // Update Button
-                      SizedBox(
-                        width: double.infinity,
-                        height: 48,
-                        child: ElevatedButton(
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: AppColors.OrangeColor,
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                          ),
-                          onPressed: updateItem,
-                          child: const Text(
-                            "Update Item",
-                            style: TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.bold,
-                              color: AppColors.whiteColor,
-                            ),
-                          ),
-                        ),
-                      ),
-                      const SizedBox(height: 12),
-
-                      // Cancel Button
-                      SizedBox(
-                        width: double.infinity,
-                        height: 48,
-                        child: OutlinedButton(
-                          style: OutlinedButton.styleFrom(
-                            side: const BorderSide(
-                              color: AppColors.OrangeColor,
-                            ),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                          ),
-                          onPressed: () => Navigator.pop(context),
-                          child: const Text(
-                            "Cancel",
-                            style: TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.bold,
-                              color: AppColors.OrangeColor,
-                            ),
-                          ),
-                        ),
-                      ),
-                    ],
+                    ),
                   ),
                 ),
               ),
-            ),
+            ],
           ),
+          if (_isLoading)
+            const Positioned.fill(
+              child: Center(
+                child: AppLoaderWidget(message: "Updating Item..."),
+              ),
+            ),
         ],
       ),
     );
@@ -419,11 +444,13 @@ class _EditItemPageState extends State<EditItemPage> {
     String label, {
     int maxLines = 1,
     TextInputType keyboardType = TextInputType.text,
+    List<TextInputFormatter>? inputFormatters, // ✅ new param
   }) {
     return TextField(
       controller: controller,
       maxLines: maxLines,
       keyboardType: keyboardType,
+      inputFormatters: inputFormatters, // ✅ apply formatters
       style: const TextStyle(color: AppColors.whiteColor),
       decoration: _inputDecoration(label),
     );

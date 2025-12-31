@@ -6,6 +6,7 @@ import 'package:menu_scan_web/Admin_Pannel/ui/Edit_Category_Page.dart';
 import 'package:menu_scan_web/Admin_Pannel/ui/Item_List_Page.dart';
 import 'package:menu_scan_web/Admin_Pannel/widgets/common_header.dart';
 import 'package:menu_scan_web/Custom/App_colors.dart';
+import 'package:menu_scan_web/Custom/app_loader.dart';
 import 'package:menu_scan_web/Custom/app_snackbar.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -82,7 +83,9 @@ class _CategoryListPageState extends State<CategoryListPage> {
                   .snapshots(),
               builder: (context, snapshot) {
                 if (snapshot.connectionState == ConnectionState.waiting) {
-                  return const Center(child: CircularProgressIndicator());
+                  return const Center(
+                    child: AppLoaderWidget(message: "Fetching Item..."),
+                  );
                 }
                 if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
                   return const Center(

@@ -99,12 +99,12 @@ class HeaderMenuButtons extends StatelessWidget {
         const SizedBox(width: 24),
         _headerButton(context, "Contact Us", const ContactUsPage()),
         const SizedBox(width: 24),
-        _headerButton(
-          context,
-          "Help",
-          null,
-          url: "https://youtu.be/0MT5f6_cn7o?si=E_fVRJ40d-uO-Vpx",
-        ),
+        // _headerButton(
+        //   context,
+        //   "Help",
+        //   null,
+        //   url: "https://youtu.be/0MT5f6_cn7o?si=E_fVRJ40d-uO-Vpx",
+        // ),
       ],
     );
   }
@@ -162,12 +162,12 @@ class MobileMenuButton extends StatelessWidget {
             _bottomSheetItem(context, "Items", const ItemListPage()),
             _bottomSheetItem(context, "Generate Qr", const GenerateQr()),
             _bottomSheetItem(context, "Contact", const ContactUsPage()),
-            _bottomSheetItem(
-              context,
-              "Help",
-              null,
-              url: "https://youtu.be/0MT5f6_cn7o?si=E_fVRJ40d-uO-Vpx",
-            ),
+            // _bottomSheetItem(
+            //   context,
+            //   "Help",
+            //   null,
+            //   url: "https://youtu.be/0MT5f6_cn7o?si=E_fVRJ40d-uO-Vpx",
+            // ),
             const SizedBox(height: 12),
           ],
         ),

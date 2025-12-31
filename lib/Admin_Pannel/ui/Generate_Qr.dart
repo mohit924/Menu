@@ -4,20 +4,16 @@ import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:menu_scan_web/Admin_Pannel/ui/login.dart';
+import 'package:menu_scan_web/Custom/app_loader.dart';
 import 'package:menu_scan_web/Custom/app_snackbar.dart';
 import 'package:pretty_qr_code/pretty_qr_code.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:menu_scan_web/Admin_Pannel/widgets/common_header.dart';
 import 'package:menu_scan_web/Custom/App_colors.dart';
-
-// Only import for mobile/desktop downloads
 import 'dart:io';
 import 'package:path_provider/path_provider.dart';
-
-// Only import for web downloads
 import 'dart:html' as html;
-
 import 'package:shared_preferences/shared_preferences.dart';
 
 class GenerateQr extends StatefulWidget {
@@ -29,11 +25,10 @@ class GenerateQr extends StatefulWidget {
 
 class _GenerateQrState extends State<GenerateQr> {
   String? hotelID;
-
   final CollectionReference qrCollection = FirebaseFirestore.instance
       .collection('qrcodes');
-
   final Map<String, GlobalKey> _qrKeys = {};
+  bool _isLoading = false; // loader flag
 
   @override
   void initState() {
@@ -59,6 +54,10 @@ class _GenerateQrState extends State<GenerateQr> {
   }
 
   Future<void> _generateQR() async {
+    if (hotelID == null) return;
+
+    setState(() => _isLoading = true); // show loader
+
     try {
       await FirebaseFirestore.instance.runTransaction((transaction) async {
         final counterDoc = FirebaseFirestore.instance
@@ -77,8 +76,7 @@ class _GenerateQrState extends State<GenerateQr> {
         }
 
         final tableId = nextId;
-        final url =
-            "https://mohit924.github.io/Menu_Scan_Web/?hotelID=$hotelID&tableID=$tableId";
+        final url = "https://mohit924.github.io/Menu/$hotelID$tableId";
 
         final newDoc = qrCollection.doc();
         transaction.set(newDoc, {
@@ -98,6 +96,8 @@ class _GenerateQrState extends State<GenerateQr> {
         message: "Error generating QR: $e",
         type: SnackType.error,
       );
+    } finally {
+      setState(() => _isLoading = false); // hide loader
     }
   }
 
@@ -117,7 +117,6 @@ class _GenerateQrState extends State<GenerateQr> {
       final image = await boundary.toImage(pixelRatio: 3.0);
       final byteData = await image.toByteData(format: ui.ImageByteFormat.png);
       final pngBytes = byteData!.buffer.asUint8List();
-
       final fileName = 'Table_$tableId.png';
 
       if (kIsWeb) {
@@ -142,7 +141,7 @@ class _GenerateQrState extends State<GenerateQr> {
       AppSnackBar.show(
         context,
         message: 'Error downloading QR: $e',
-        type: SnackType.success,
+        type: SnackType.error,
       );
     }
   }
@@ -163,132 +162,147 @@ class _GenerateQrState extends State<GenerateQr> {
 
     return Scaffold(
       backgroundColor: AppColors.primaryBackground,
-      body: Column(
+      body: Stack(
         children: [
-          const SizedBox(height: 25),
-          const CommonHeader(currentPage: "Generate Qr", showSearchBar: false),
-          Expanded(
-            child: StreamBuilder<QuerySnapshot>(
-              stream: qrCollection
-                  .where('hotelID', isEqualTo: hotelID)
-                  .snapshots(),
-              builder: (context, snapshot) {
-                if (snapshot.connectionState == ConnectionState.waiting) {
-                  return const Center(child: CircularProgressIndicator());
-                }
+          Column(
+            children: [
+              const SizedBox(height: 25),
+              const CommonHeader(
+                currentPage: "Generate Qr",
+                showSearchBar: false,
+              ),
+              Expanded(
+                child: StreamBuilder<QuerySnapshot>(
+                  stream: qrCollection
+                      .where('hotelID', isEqualTo: hotelID)
+                      .snapshots(),
+                  builder: (context, snapshot) {
+                    if (snapshot.connectionState == ConnectionState.waiting) {
+                      return const Center(
+                        child: AppLoaderWidget(message: "Loading QR..."),
+                      );
+                    }
 
-                if (snapshot.hasError) {
-                  return Center(
-                    child: Text(
-                      'Error loading QR codes: ${snapshot.error}',
-                      style: const TextStyle(color: AppColors.whiteColor),
-                    ),
-                  );
-                }
+                    if (snapshot.hasError) {
+                      return Center(
+                        child: Text(
+                          'Error loading QR codes: ${snapshot.error}',
+                          style: const TextStyle(color: AppColors.whiteColor),
+                        ),
+                      );
+                    }
 
-                final docs = snapshot.data?.docs ?? [];
+                    final docs = snapshot.data?.docs ?? [];
 
-                if (docs.isEmpty) {
-                  return const Center(
-                    child: Text(
-                      'No QR codes generated yet.',
-                      style: TextStyle(color: AppColors.whiteColor),
-                    ),
-                  );
-                }
+                    if (docs.isEmpty) {
+                      return const Center(
+                        child: Text(
+                          'No QR codes generated yet.',
+                          style: TextStyle(color: AppColors.whiteColor),
+                        ),
+                      );
+                    }
 
-                docs.sort((a, b) {
-                  final tableA = a['tableID'] ?? 0;
-                  final tableB = b['tableID'] ?? 0;
-                  return tableA.compareTo(tableB);
-                });
+                    docs.sort((a, b) {
+                      final tableA = a['tableID'] ?? 0;
+                      final tableB = b['tableID'] ?? 0;
+                      return tableA.compareTo(tableB);
+                    });
 
-                return SingleChildScrollView(
-                  padding: const EdgeInsets.all(16),
-                  child: Align(
-                    alignment: Alignment.topLeft,
-                    child: Wrap(
-                      spacing: 16,
-                      runSpacing: 16,
-                      children: docs.map((doc) {
-                        final url = doc['url'] ?? '';
-                        final tableId = doc['tableID'] ?? 0;
+                    return SingleChildScrollView(
+                      padding: const EdgeInsets.all(16),
+                      child: Align(
+                        alignment: Alignment.topLeft,
+                        child: Wrap(
+                          spacing: 16,
+                          runSpacing: 16,
+                          children: docs.map((doc) {
+                            final url = doc['url'] ?? '';
+                            final tableId = doc['tableID'] ?? 0;
+                            final qrKey = GlobalKey();
+                            _qrKeys[doc.id] = qrKey;
 
-                        final qrKey = GlobalKey();
-                        _qrKeys[doc.id] = qrKey;
-
-                        return Container(
-                          width: cardWidth,
-                          padding: const EdgeInsets.all(16),
-                          decoration: BoxDecoration(
-                            color: AppColors.secondaryBackground,
-                            borderRadius: BorderRadius.circular(16),
-                            boxShadow: [
-                              BoxShadow(
-                                color: Colors.black.withOpacity(0.2),
-                                blurRadius: 12,
-                                offset: const Offset(0, 6),
+                            return Container(
+                              width: cardWidth,
+                              padding: const EdgeInsets.all(16),
+                              decoration: BoxDecoration(
+                                color: AppColors.secondaryBackground,
+                                borderRadius: BorderRadius.circular(16),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: Colors.black.withOpacity(0.2),
+                                    blurRadius: 12,
+                                    offset: const Offset(0, 6),
+                                  ),
+                                ],
                               ),
-                            ],
-                          ),
-                          child: Row(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              RepaintBoundary(
-                                key: qrKey,
-                                child: PrettyQr(
-                                  data: url,
-                                  size: 80,
-                                  elementColor: AppColors.whiteColor,
-                                  roundEdges: true,
-                                ),
-                              ),
-                              const SizedBox(width: 16),
-                              Expanded(
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text(
-                                      'Table ID: $tableId',
-                                      style: const TextStyle(
-                                        color: AppColors.whiteColor,
-                                        fontSize: 18,
-                                        fontWeight: FontWeight.w500,
-                                      ),
+                              child: Row(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  RepaintBoundary(
+                                    key: qrKey,
+                                    child: PrettyQr(
+                                      data: url,
+                                      size: 80,
+                                      elementColor: AppColors.whiteColor,
+                                      roundEdges: true,
                                     ),
-                                    const SizedBox(height: 8),
-                                    Row(
+                                  ),
+                                  const SizedBox(width: 16),
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
                                       children: [
-                                        IconButton(
-                                          icon: const Icon(
-                                            Icons.share,
-                                            color: AppColors.OrangeColor,
+                                        Text(
+                                          'Table ID: $tableId',
+                                          style: const TextStyle(
+                                            color: AppColors.whiteColor,
+                                            fontSize: 18,
+                                            fontWeight: FontWeight.w500,
                                           ),
-                                          onPressed: () => _shareQR(url),
                                         ),
-                                        IconButton(
-                                          icon: const Icon(
-                                            Icons.download,
-                                            color: AppColors.OrangeColor,
-                                          ),
-                                          onPressed: () =>
-                                              _downloadQrImage(doc.id, tableId),
+                                        const SizedBox(height: 8),
+                                        Row(
+                                          children: [
+                                            IconButton(
+                                              icon: const Icon(
+                                                Icons.share,
+                                                color: AppColors.OrangeColor,
+                                              ),
+                                              onPressed: () => _shareQR(url),
+                                            ),
+                                            IconButton(
+                                              icon: const Icon(
+                                                Icons.download,
+                                                color: AppColors.OrangeColor,
+                                              ),
+                                              onPressed: () => _downloadQrImage(
+                                                doc.id,
+                                                tableId,
+                                              ),
+                                            ),
+                                          ],
                                         ),
                                       ],
                                     ),
-                                  ],
-                                ),
+                                  ),
+                                ],
                               ),
-                            ],
-                          ),
-                        );
-                      }).toList(),
-                    ),
-                  ),
-                );
-              },
-            ),
+                            );
+                          }).toList(),
+                        ),
+                      ),
+                    );
+                  },
+                ),
+              ),
+            ],
           ),
+          if (_isLoading)
+            const Positioned.fill(
+              child: AppLoaderWidget(message: "Generating QR..."),
+            ),
         ],
       ),
       floatingActionButton: FloatingActionButton.extended(

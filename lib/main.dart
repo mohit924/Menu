@@ -15,9 +15,20 @@ void main() async {
   await Firebase.initializeApp(options: DefaultFirebaseOptions.web);
 
   final uri = Uri.parse(html.window.location.href);
+  final segments = uri.pathSegments;
 
-  final hotelID = uri.queryParameters['hotelID'];
-  final tableID = uri.queryParameters['tableID'];
+  String? hotelID;
+  String? tableID;
+
+  if (segments.length >= 2) {
+    final combined = segments.last;
+
+    hotelID = combined.substring(0, combined.length - 1);
+    tableID = combined.substring(combined.length - 1);
+  }
+
+  // final hotelID = uri.queryParameters['hotelID'];
+  // final tableID = uri.queryParameters['tableID'];
 
   final prefs = await SharedPreferences.getInstance();
   final savedHotelID = prefs.getString('hotelID');

@@ -6,6 +6,7 @@ import 'package:menu_scan_web/Admin_Pannel/ui/Edit_Item_Page.dart';
 import 'package:menu_scan_web/Admin_Pannel/ui/login.dart';
 import 'package:menu_scan_web/Admin_Pannel/widgets/common_header.dart';
 import 'package:menu_scan_web/Custom/App_colors.dart';
+import 'package:menu_scan_web/Custom/app_loader.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class ItemListPage extends StatefulWidget {
@@ -86,7 +87,9 @@ class _ItemListPageState extends State<ItemListPage> {
               stream: _itemsStream(),
               builder: (context, snapshot) {
                 if (snapshot.connectionState == ConnectionState.waiting) {
-                  return const Center(child: CircularProgressIndicator());
+                  return const Center(
+                    child: AppLoaderWidget(message: "Loading Item..."),
+                  );
                 }
 
                 if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {

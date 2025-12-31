@@ -23,12 +23,9 @@ void main() async {
   if (segments.length >= 2) {
     final combined = segments.last;
 
-    hotelID = combined.substring(0, combined.length - 1);
-    tableID = combined.substring(combined.length - 1);
+    hotelID = combined.substring(0, 4);
+    tableID = combined.substring(4);
   }
-
-  // final hotelID = uri.queryParameters['hotelID'];
-  // final tableID = uri.queryParameters['tableID'];
 
   final prefs = await SharedPreferences.getInstance();
   final savedHotelID = prefs.getString('hotelID');

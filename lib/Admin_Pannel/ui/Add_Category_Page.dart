@@ -224,7 +224,6 @@ class _AddCategoryPageState extends State<AddCategoryPage> {
             ],
           ),
 
-          // ✅ Full-screen loader
           if (_isLoading) AppLoaderWidget(message: "Adding Category..."),
         ],
       ),

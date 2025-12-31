@@ -462,12 +462,12 @@ class _AddItemPageState extends State<AddItemPage> {
     String label, {
     int maxLines = 1,
     TextInputType keyboardType = TextInputType.text,
-    List<TextInputFormatter>? inputFormatters, // ✅ new param
+    List<TextInputFormatter>? inputFormatters,
   }) => TextField(
     controller: controller,
     maxLines: maxLines,
     keyboardType: keyboardType,
-    inputFormatters: inputFormatters, // ✅ apply formatters
+    inputFormatters: inputFormatters,
     style: const TextStyle(color: AppColors.whiteColor),
     decoration: _inputDecoration(label),
   );

@@ -30618,9 +30618,8 @@ case 2:q=window.location.href
 q.toString
 p=A.iB(q,0,null).guM()
 if(p.length>=2){o=B.d.gah(p)
-q=o.length-1
-n=B.e.ab(o,0,q)
-m=B.e.cJ(o,q)}else{n=null
+n=B.e.ab(o,0,4)
+m=B.e.cJ(o,4)}else{n=null
 m=null}e=A
 d=J
 s=3

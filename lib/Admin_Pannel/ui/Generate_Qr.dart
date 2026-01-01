@@ -102,8 +102,55 @@ class _GenerateQrState extends State<GenerateQr> {
     }
   }
 
-  void _shareQR(String url) {
-    Share.share(url);
+  Future<void> _shareQRWithImage(String id, String url, int tableId) async {
+    try {
+      final key = _qrKeys[id];
+      if (key == null) return;
+
+      final boundary =
+          key.currentContext?.findRenderObject() as RenderRepaintBoundary?;
+      if (boundary == null) return;
+
+      final image = await boundary.toImage(pixelRatio: 10.0);
+      final byteData = await image.toByteData(format: ui.ImageByteFormat.png);
+      final pngBytes = byteData!.buffer.asUint8List();
+      final fileName = 'Table_$tableId.png';
+
+      if (kIsWeb) {
+        // On web: share only URL (file sharing is limited)
+        final blob = html.Blob([pngBytes]);
+        final urlBlob = html.Url.createObjectUrlFromBlob(blob);
+
+        // Optional: trigger download
+        final anchor = html.AnchorElement(href: urlBlob)
+          ..setAttribute("download", fileName)
+          ..click();
+        html.Url.revokeObjectUrl(urlBlob);
+
+        // Also copy URL to clipboard or show snackbar
+        AppSnackBar.show(
+          context,
+          message: 'QR image downloaded. You can share the URL: $url',
+          type: SnackType.success,
+        );
+      } else {
+        // On mobile/desktop: share image + URL
+        final directory = await getApplicationDocumentsDirectory();
+        final file = File('${directory.path}/$fileName');
+        await file.writeAsBytes(pngBytes);
+
+        await Share.shareXFiles([
+          XFile(file.path),
+        ], text: 'Scan this QR code for Table $tableId:\n$url');
+      }
+    } catch (e) {
+      debugPrint("Error sharing QR: $e");
+      AppSnackBar.show(
+        context,
+        message: 'Error sharing QR: $e',
+        type: SnackType.error,
+      );
+    }
   }
 
   Future<void> _downloadQrImage(String id, int tableId) async {
@@ -115,7 +162,7 @@ class _GenerateQrState extends State<GenerateQr> {
           key.currentContext?.findRenderObject() as RenderRepaintBoundary?;
       if (boundary == null) return;
 
-      final image = await boundary.toImage(pixelRatio: 3.0);
+      final image = await boundary.toImage(pixelRatio: 10.0);
       final byteData = await image.toByteData(format: ui.ImageByteFormat.png);
       final pngBytes = byteData!.buffer.asUint8List();
       final fileName = 'Table_$tableId.png';
@@ -244,7 +291,7 @@ class _GenerateQrState extends State<GenerateQr> {
                                     key: qrKey,
                                     child: PrettyQr(
                                       data: url,
-                                      size: 80,
+                                      size: 200, // bigger size
                                       elementColor: AppColors.whiteColor,
                                       roundEdges: true,
                                     ),
@@ -271,7 +318,12 @@ class _GenerateQrState extends State<GenerateQr> {
                                                 Icons.share,
                                                 color: AppColors.OrangeColor,
                                               ),
-                                              onPressed: () => _shareQR(url),
+                                              onPressed: () =>
+                                                  _shareQRWithImage(
+                                                    doc.id,
+                                                    url,
+                                                    tableId,
+                                                  ),
                                             ),
                                             IconButton(
                                               icon: const Icon(

@@ -1,13 +1,13 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <!-- Placeholder required for flutter build --base-href -->
   <base href="/Menu_Scan_Web/">
 
   <meta charset="UTF-8">
   <meta http-equiv="X-UA-Compatible" content="IE=Edge">
-  <meta name="description" content="Menu Scan Web App">
+  <meta name="description" content="A new Flutter project.">
 
+  <!-- Enable pinch zoom -->
   <meta name="viewport"
         content="width=device-width, initial-scale=1.0, minimum-scale=1.0, maximum-scale=5.0, user-scalable=yes">
 
@@ -16,11 +16,16 @@
       height: 100%;
       margin: 0;
       padding: 0;
+
+      /* ❌ Disable browser scroll & refresh */
       overflow: hidden;
       overscroll-behavior: none;
+
+      /* ✅ Allow pinch zoom only */
       touch-action: pinch-zoom;
     }
 
+    /* Flutter canvas */
     #flt-glass-pane {
       touch-action: pinch-zoom;
     }

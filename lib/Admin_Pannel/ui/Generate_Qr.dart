@@ -284,18 +284,18 @@ class _GenerateQrState extends State<GenerateQr> {
                                         const SizedBox(height: 8),
                                         Row(
                                           children: [
-                                            IconButton(
-                                              icon: const Icon(
-                                                Icons.share,
-                                                color: AppColors.OrangeColor,
-                                              ),
-                                              onPressed: () =>
-                                                  downloadOrShareQrPdf(
-                                                    tableId: tableId,
-                                                    qrUrl: url,
-                                                    share: true,
-                                                  ),
-                                            ),
+                                            // IconButton(
+                                            //   icon: const Icon(
+                                            //     Icons.share,
+                                            //     color: AppColors.OrangeColor,
+                                            //   ),
+                                            //   onPressed: () =>
+                                            //       downloadOrShareQrPdf(
+                                            //         tableId: tableId,
+                                            //         qrUrl: url,
+                                            //         share: true,
+                                            //       ),
+                                            // ),
                                             IconButton(
                                               icon: const Icon(
                                                 Icons.download,

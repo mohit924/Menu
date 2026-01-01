@@ -76,7 +76,7 @@ class _GenerateQrState extends State<GenerateQr> {
         }
 
         final tableId = nextId;
-        final url = "https://mohit924.github.io/Menu/$hotelID$tableId";
+        final url = "https://mohit924.github.io/Menu_Scan_Web/$hotelID$tableId";
 
         final newDoc = qrCollection.doc();
         transaction.set(newDoc, {

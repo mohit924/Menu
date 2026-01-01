@@ -14,21 +14,16 @@ void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Firebase.initializeApp(options: DefaultFirebaseOptions.web);
 
-  // Parse URL segments
   final uri = Uri.parse(html.window.location.href);
   final segments = uri.pathSegments;
 
   String? hotelID;
   String? tableID;
 
-  if (segments.isNotEmpty) {
-    final combined = segments.last;
-
-    // OLD working logic: first 4 chars = hotelID, rest = tableID
-    if (combined.length >= 5) {
-      hotelID = combined.substring(0, 4);
-      tableID = combined.substring(4);
-    }
+  if (segments.length >= 2) {
+    // New URL format: /Menu_Scan_Web/$hotelID/$tableID
+    hotelID = segments[segments.length - 2];
+    tableID = segments.last;
   }
 
   // Load saved hotelID from SharedPreferences (owner)

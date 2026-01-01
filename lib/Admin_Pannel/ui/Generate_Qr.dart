@@ -1,25 +1,18 @@
 import 'dart:typed_data';
-import 'dart:ui' as ui;
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
-import 'package:flutter/rendering.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:menu_scan_web/Admin_Pannel/ui/login.dart';
+import 'package:menu_scan_web/Admin_Pannel/widgets/common_header.dart';
 import 'package:menu_scan_web/Custom/app_loader.dart';
 import 'package:menu_scan_web/Custom/app_snackbar.dart';
-import 'package:pretty_qr_code/pretty_qr_code.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:share_plus/share_plus.dart';
-import 'package:menu_scan_web/Admin_Pannel/widgets/common_header.dart';
 import 'package:menu_scan_web/Custom/App_colors.dart';
-import 'dart:io';
-import 'package:path_provider/path_provider.dart';
+import 'package:pretty_qr_code/pretty_qr_code.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:printing/printing.dart';
-import 'dart:typed_data';
 import 'dart:io';
-import 'package:flutter/foundation.dart' show kIsWeb;
 import 'dart:html' as html;
 import 'package:path_provider/path_provider.dart';
 
@@ -43,13 +36,69 @@ class _GenerateQrState extends State<GenerateQr> {
     _loadHotelID();
   }
 
+  Future<void> _loadHotelID() async {
+    final prefs = await SharedPreferences.getInstance();
+    final savedHotelID = prefs.getString('hotelID');
+    if (savedHotelID == null || savedHotelID.isEmpty) {
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (_) => const LoginPage()),
+      );
+      return;
+    }
+    setState(() => hotelID = savedHotelID);
+  }
+
+  Future<void> _generateQR() async {
+    if (hotelID == null) return;
+    setState(() => _isLoading = true);
+    try {
+      await FirebaseFirestore.instance.runTransaction((transaction) async {
+        final counterDoc = FirebaseFirestore.instance
+            .collection('QRCounters')
+            .doc(hotelID);
+        final counterSnapshot = await transaction.get(counterDoc);
+        int nextId = 1;
+        if (counterSnapshot.exists) {
+          final lastId = counterSnapshot['lastID'] ?? 0;
+          nextId = lastId + 1;
+          transaction.update(counterDoc, {'lastID': nextId});
+        } else {
+          transaction.set(counterDoc, {'lastID': nextId});
+        }
+
+        final tableId = nextId;
+        final url =
+            "https://mohit924.github.io/Menu_Scan_Web/?hotelID=$hotelID&tableID=$tableId";
+
+        final newDoc = qrCollection.doc();
+        transaction.set(newDoc, {
+          'hotelID': hotelID,
+          'id': nextId,
+          'tableID': tableId,
+          'url': url,
+          'createdAt': FieldValue.serverTimestamp(),
+        });
+
+        debugPrint("Generated QR URL: $url");
+      });
+    } catch (e) {
+      AppSnackBar.show(
+        context,
+        message: "Error generating QR: $e",
+        type: SnackType.error,
+      );
+    } finally {
+      setState(() => _isLoading = false);
+    }
+  }
+
   Future<void> downloadOrShareQrPdf({
     required int tableId,
     required String qrUrl,
-    bool share = false, // set true if you want to share
+    bool share = false,
   }) async {
     final pdf = pw.Document();
-
     pdf.addPage(
       pw.Page(
         pageFormat: PdfPageFormat.a4,
@@ -82,153 +131,46 @@ class _GenerateQrState extends State<GenerateQr> {
     );
 
     final fileName = 'Table_$tableId.pdf';
+    final bytes = await pdf.save();
 
     if (kIsWeb) {
-      // Web download or share
-      final bytes = await pdf.save();
       final blob = html.Blob([bytes], 'application/pdf');
       final url = html.Url.createObjectUrlFromBlob(blob);
 
       if (share) {
-        // Share PDF (web can only copy link or use navigator.share in PWA)
-        await html.window.navigator.share?.call({
-          'title': 'QR PDF',
-          'url': url,
-        });
+        // On web, copy PDF URL to clipboard as a fallback for sharing
+        await html.window.navigator.clipboard?.writeText(url);
+        AppSnackBar.show(
+          context,
+          message: 'PDF URL copied! Share it manually.',
+        );
       } else {
         final anchor = html.AnchorElement(href: url)
           ..setAttribute('download', fileName)
           ..click();
       }
+
       html.Url.revokeObjectUrl(url);
     } else {
-      // Mobile or Desktop
-      final bytes = await pdf.save();
       final directory = await getApplicationDocumentsDirectory();
       final file = File('${directory.path}/$fileName');
       await file.writeAsBytes(bytes);
 
       if (share) {
         await Printing.sharePdf(bytes: bytes, filename: fileName);
-      }
-    }
-  }
-
-  Future<void> _loadHotelID() async {
-    final prefs = await SharedPreferences.getInstance();
-    final savedHotelID = prefs.getString('hotelID');
-
-    if (savedHotelID == null || savedHotelID.isEmpty) {
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(builder: (_) => const LoginPage()),
-      );
-      return;
-    }
-
-    setState(() {
-      hotelID = savedHotelID;
-    });
-  }
-
-  Future<void> _generateQR() async {
-    if (hotelID == null) return;
-
-    setState(() => _isLoading = true); // show loader
-
-    try {
-      await FirebaseFirestore.instance.runTransaction((transaction) async {
-        final counterDoc = FirebaseFirestore.instance
-            .collection('QRCounters')
-            .doc(hotelID);
-
-        final counterSnapshot = await transaction.get(counterDoc);
-        int nextId = 1;
-
-        if (counterSnapshot.exists) {
-          final lastId = counterSnapshot['lastID'] ?? 0;
-          nextId = lastId + 1;
-          transaction.update(counterDoc, {'lastID': nextId});
-        } else {
-          transaction.set(counterDoc, {'lastID': nextId});
-        }
-
-        final tableId = nextId;
-        final url =
-            "https://mohit924.github.io/Menu_Scan_Web/?hotelID=$hotelID&tableID=$tableId";
-
-        final newDoc = qrCollection.doc();
-        transaction.set(newDoc, {
-          'hotelID': hotelID,
-          'id': nextId,
-          'tableID': tableId,
-          'url': url,
-          'createdAt': FieldValue.serverTimestamp(),
-        });
-
-        debugPrint("Generated QR URL: $url");
-      });
-    } catch (e) {
-      debugPrint("Error generating QR: $e");
-      AppSnackBar.show(
-        context,
-        message: "Error generating QR: $e",
-        type: SnackType.error,
-      );
-    } finally {
-      setState(() => _isLoading = false); // hide loader
-    }
-  }
-
-  void _shareQR(String url) {
-    Share.share(url);
-  }
-
-  Future<void> _downloadQrImage(String id, int tableId) async {
-    try {
-      final key = _qrKeys[id];
-      if (key == null) return;
-
-      final boundary =
-          key.currentContext?.findRenderObject() as RenderRepaintBoundary?;
-      if (boundary == null) return;
-
-      final image = await boundary.toImage(pixelRatio: 10.0);
-      final byteData = await image.toByteData(format: ui.ImageByteFormat.png);
-      final pngBytes = byteData!.buffer.asUint8List();
-      final fileName = 'Table_$tableId.png';
-
-      if (kIsWeb) {
-        final blob = html.Blob([pngBytes]);
-        final url = html.Url.createObjectUrlFromBlob(blob);
-        final anchor = html.AnchorElement(href: url)
-          ..setAttribute("download", fileName)
-          ..click();
-        html.Url.revokeObjectUrl(url);
       } else {
-        final directory = await getApplicationDocumentsDirectory();
-        final file = File('${directory.path}/$fileName');
-        await file.writeAsBytes(pngBytes);
         AppSnackBar.show(
           context,
-          message: 'QR code downloaded: ${file.path}',
+          message: 'PDF downloaded: ${file.path}',
           type: SnackType.success,
         );
       }
-    } catch (e) {
-      debugPrint("Error downloading QR: $e");
-      AppSnackBar.show(
-        context,
-        message: 'Error downloading QR: $e',
-        type: SnackType.error,
-      );
     }
   }
 
   @override
   Widget build(BuildContext context) {
     final screenWidth = MediaQuery.of(context).size.width;
-
     int cardsPerRow = screenWidth >= 1200
         ? 4
         : screenWidth >= 900
@@ -236,7 +178,6 @@ class _GenerateQrState extends State<GenerateQr> {
         : screenWidth >= 600
         ? 2
         : 1;
-
     final cardWidth = (screenWidth - (16 * (cardsPerRow + 1))) / cardsPerRow;
 
     return Scaffold(
@@ -272,7 +213,6 @@ class _GenerateQrState extends State<GenerateQr> {
                     }
 
                     final docs = snapshot.data?.docs ?? [];
-
                     if (docs.isEmpty) {
                       return const Center(
                         child: Text(
@@ -322,7 +262,7 @@ class _GenerateQrState extends State<GenerateQr> {
                                     key: qrKey,
                                     child: PrettyQr(
                                       data: url,
-                                      size: 100, // bigger size
+                                      size: 100,
                                       elementColor: AppColors.whiteColor,
                                       roundEdges: true,
                                     ),
@@ -353,7 +293,7 @@ class _GenerateQrState extends State<GenerateQr> {
                                                   downloadOrShareQrPdf(
                                                     tableId: tableId,
                                                     qrUrl: url,
-                                                    share: true, // share PDF
+                                                    share: true,
                                                   ),
                                             ),
                                             IconButton(
@@ -365,8 +305,7 @@ class _GenerateQrState extends State<GenerateQr> {
                                                   downloadOrShareQrPdf(
                                                     tableId: tableId,
                                                     qrUrl: url,
-                                                    share:
-                                                        false, // just download
+                                                    share: false,
                                                   ),
                                             ),
                                           ],

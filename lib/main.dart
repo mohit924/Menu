@@ -15,29 +15,23 @@ void main() async {
   await Firebase.initializeApp(options: DefaultFirebaseOptions.web);
 
   final uri = Uri.parse(html.window.location.href);
-  final segments = uri.pathSegments;
 
-  String? hotelID;
-  String? tableID;
+  final hotelID = uri.queryParameters['hotelID'];
+  final tableID = uri.queryParameters['tableID'];
 
-  if (segments.length >= 2) {
-    // New URL format: /Menu_Scan_Web/$hotelID/$tableID
-    hotelID = segments[segments.length - 2];
-    tableID = segments.last;
-  }
-
-  // Load saved hotelID from SharedPreferences (owner)
   final prefs = await SharedPreferences.getInstance();
   final savedHotelID = prefs.getString('hotelID');
 
   runApp(
-    ChangeNotifierProvider(
-      create: (_) => LanguageProvider(),
+    MultiProvider(
+      providers: [
+        ChangeNotifierProvider(create: (_) => LanguageProvider()),
+        // Add more providers here if needed
+      ],
       child: MyApp(
         hotelID: hotelID,
         tableID: tableID,
         savedHotelID: savedHotelID,
-        isRootUrl: segments.isEmpty,
       ),
     ),
   );
@@ -47,29 +41,20 @@ class MyApp extends StatelessWidget {
   final String? hotelID;
   final String? tableID;
   final String? savedHotelID;
-  final bool isRootUrl;
 
-  const MyApp({
-    this.hotelID,
-    this.tableID,
-    this.savedHotelID,
-    this.isRootUrl = false,
-    super.key,
-  });
+  const MyApp({this.hotelID, this.tableID, this.savedHotelID, super.key});
 
   @override
   Widget build(BuildContext context) {
     Widget home;
 
     if (hotelID != null && tableID != null) {
-      // CUSTOMER URL → always open MenuScreen
       home = MenuScreen(hotelID: hotelID!, tableID: tableID!);
-    } else if (isRootUrl && savedHotelID != null && savedHotelID!.isNotEmpty) {
-      // OWNER visiting root URL after login → AdminDashboard
-      home = const AdminDashboardPage();
+    } else if (savedHotelID != null && savedHotelID!.isNotEmpty) {
+      home = AdminDashboardPage();
     } else {
-      // Fallback → LoginPage
       home = const LoginPage();
+      // home = MenuScreen(hotelID: "UFKH", tableID: "2");
     }
 
     return MaterialApp(

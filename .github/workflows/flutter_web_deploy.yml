@@ -22,7 +22,7 @@ jobs:
         run: flutter pub get
 
       - name: Build Flutter web
-        run: flutter build web --release --base-href "/Menu_Scan_Web/"
+        run: flutter build web --debug  --base-href "/Menu_Scan_Web/"
 
       - name: Deploy to GitHub Pages
         uses: peaceiris/actions-gh-pages@v3

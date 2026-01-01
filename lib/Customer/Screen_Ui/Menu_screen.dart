@@ -522,221 +522,248 @@ class _MenuScreenState extends State<MenuScreen> {
               Expanded(
                 child: Padding(
                   padding: const EdgeInsets.all(10),
-                  child: _isMenuLoading
-                      ? AppLoaderWidget(
-                          message: _isLanguageChanging
-                              ? "Updating language..."
-                              : "Loading menu...",
-                        )
-                      : ListView(
-                          controller: _scrollController,
-                          padding: EdgeInsets.only(
-                            bottom: totalCount > 0 ? 100 : 0,
-                          ),
-                          children: groupedItems.entries.map((entry) {
-                            final categoryName = entry.key;
-                            final items = entry.value;
-                            final isExpanded =
-                                expandedCategories[categoryName] ?? true;
-
-                            return Container(
-                              key: categoryKeys[categoryName],
-                              margin: const EdgeInsets.only(bottom: 20),
-                              padding: const EdgeInsets.all(10),
-                              decoration: BoxDecoration(
-                                color: AppColors.secondaryBackground,
-                                borderRadius: BorderRadius.circular(16),
+                  child: RefreshIndicator(
+                    onRefresh: () async {
+                      setState(() {
+                        _isMenuLoading = true;
+                      });
+                      await fetchCategoriesAndItems();
+                    },
+                    color: AppColors.OrangeColor,
+                    backgroundColor: AppColors.primaryBackground,
+                    child: _isMenuLoading
+                        ? ListView(
+                            physics: const AlwaysScrollableScrollPhysics(),
+                            children: [
+                              AppLoaderWidget(
+                                message: _isLanguageChanging
+                                    ? "Updating language..."
+                                    : "Loading menu...",
                               ),
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.stretch,
-                                children: [
-                                  InkWell(
-                                    onTap: () {
-                                      setState(() {
-                                        expandedCategories[categoryName] =
-                                            !isExpanded;
-                                      });
-                                    },
-                                    child: AnimatedContainer(
+                            ],
+                          )
+                        : ListView(
+                            controller: _scrollController,
+                            padding: EdgeInsets.only(
+                              bottom: totalCount > 0 ? 100 : 0,
+                            ),
+                            children: groupedItems.entries.map((entry) {
+                              final categoryName = entry.key;
+                              final items = entry.value;
+                              final isExpanded =
+                                  expandedCategories[categoryName] ?? true;
+
+                              return Container(
+                                key: categoryKeys[categoryName],
+                                margin: const EdgeInsets.only(bottom: 20),
+                                padding: const EdgeInsets.all(10),
+                                decoration: BoxDecoration(
+                                  color: AppColors.secondaryBackground,
+                                  borderRadius: BorderRadius.circular(16),
+                                ),
+                                child: Column(
+                                  crossAxisAlignment:
+                                      CrossAxisAlignment.stretch,
+                                  children: [
+                                    InkWell(
+                                      onTap: () {
+                                        setState(() {
+                                          expandedCategories[categoryName] =
+                                              !isExpanded;
+                                        });
+                                      },
+                                      child: AnimatedContainer(
+                                        duration: const Duration(
+                                          milliseconds: 300,
+                                        ),
+                                        height: isExpanded ? 50 : 25,
+                                        alignment: Alignment.center,
+                                        child: Row(
+                                          mainAxisAlignment:
+                                              MainAxisAlignment.spaceBetween,
+                                          children: [
+                                            Expanded(
+                                              child: Text(
+                                                categoryName,
+                                                style: const TextStyle(
+                                                  fontSize: 18,
+                                                  fontWeight: FontWeight.bold,
+                                                  color:
+                                                      AppColors.LightGreyColor,
+                                                ),
+                                                maxLines: 2,
+                                                overflow: TextOverflow.ellipsis,
+                                              ),
+                                            ),
+                                            Icon(
+                                              isExpanded
+                                                  ? Icons.keyboard_arrow_up
+                                                  : Icons.keyboard_arrow_down,
+                                              color: AppColors.OrangeColor,
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                    ),
+                                    const SizedBox(height: 10),
+                                    AnimatedCrossFade(
+                                      firstChild: const SizedBox.shrink(),
+                                      secondChild: LayoutBuilder(
+                                        builder: (context, constraints) {
+                                          double itemWidth =
+                                              (constraints.maxWidth - 10) / 2;
+
+                                          return Wrap(
+                                            spacing: 10,
+                                            runSpacing: 10,
+                                            children: items.map((item) {
+                                              final id = item["id"];
+                                              final state = buttonStates[id]!;
+                                              final imageUrl =
+                                                  _imageUrlCache[item["image"]];
+
+                                              return SizedBox(
+                                                width: itemWidth,
+                                                child: GestureDetector(
+                                                  onTap: () =>
+                                                      _showMenuBottomSheet(
+                                                        item,
+                                                      ),
+                                                  child: Container(
+                                                    decoration: BoxDecoration(
+                                                      color: AppColors
+                                                          .primaryBackground,
+                                                      borderRadius:
+                                                          BorderRadius.circular(
+                                                            16,
+                                                          ),
+                                                      boxShadow: [
+                                                        BoxShadow(
+                                                          color: Colors.black
+                                                              .withOpacity(
+                                                                0.05,
+                                                              ),
+                                                          blurRadius: 4,
+                                                          offset: const Offset(
+                                                            0,
+                                                            2,
+                                                          ),
+                                                        ),
+                                                      ],
+                                                    ),
+                                                    child: Column(
+                                                      crossAxisAlignment:
+                                                          CrossAxisAlignment
+                                                              .stretch,
+                                                      children: [
+                                                        Container(
+                                                          height: 120,
+                                                          decoration: BoxDecoration(
+                                                            borderRadius:
+                                                                const BorderRadius.vertical(
+                                                                  top:
+                                                                      Radius.circular(
+                                                                        16,
+                                                                      ),
+                                                                ),
+                                                          ),
+                                                          child: _buildImage(
+                                                            item["image"],
+                                                          ),
+                                                        ),
+                                                        const SizedBox(
+                                                          height: 8,
+                                                        ),
+                                                        Container(
+                                                          height: 60,
+                                                          padding:
+                                                              const EdgeInsets.symmetric(
+                                                                horizontal: 8,
+                                                              ),
+                                                          child: Text(
+                                                            item["name"],
+                                                            style: const TextStyle(
+                                                              fontSize: 16,
+                                                              fontWeight:
+                                                                  FontWeight
+                                                                      .bold,
+                                                              color: AppColors
+                                                                  .LightGreyColor,
+                                                            ),
+                                                            maxLines: 2,
+                                                            overflow:
+                                                                TextOverflow
+                                                                    .ellipsis,
+                                                          ),
+                                                        ),
+                                                        const SizedBox(
+                                                          height: 4,
+                                                        ),
+                                                        Padding(
+                                                          padding:
+                                                              const EdgeInsets.symmetric(
+                                                                horizontal: 8,
+                                                              ),
+                                                          child: Row(
+                                                            mainAxisAlignment:
+                                                                MainAxisAlignment
+                                                                    .spaceBetween,
+                                                            children: [
+                                                              Text(
+                                                                item["price"],
+                                                                style: const TextStyle(
+                                                                  color: AppColors
+                                                                      .OrangeColor,
+                                                                  fontWeight:
+                                                                      FontWeight
+                                                                          .bold,
+                                                                ),
+                                                              ),
+                                                              ToggleAddButton(
+                                                                isCompleted:
+                                                                    state["isCompleted"],
+                                                                count:
+                                                                    state["count"],
+                                                                onChanged:
+                                                                    (
+                                                                      newCompleted,
+                                                                      newCount,
+                                                                    ) {
+                                                                      _updateItemCount(
+                                                                        id,
+                                                                        newCount,
+                                                                        item,
+                                                                      );
+                                                                    },
+                                                              ),
+                                                            ],
+                                                          ),
+                                                        ),
+                                                        const SizedBox(
+                                                          height: 8,
+                                                        ),
+                                                      ],
+                                                    ),
+                                                  ),
+                                                ),
+                                              );
+                                            }).toList(),
+                                          );
+                                        },
+                                      ),
+                                      crossFadeState: isExpanded
+                                          ? CrossFadeState.showSecond
+                                          : CrossFadeState.showFirst,
                                       duration: const Duration(
                                         milliseconds: 300,
                                       ),
-                                      height: isExpanded ? 50 : 25,
-                                      alignment: Alignment.center,
-                                      child: Row(
-                                        mainAxisAlignment:
-                                            MainAxisAlignment.spaceBetween,
-                                        children: [
-                                          Expanded(
-                                            child: Text(
-                                              categoryName,
-                                              style: const TextStyle(
-                                                fontSize: 18,
-                                                fontWeight: FontWeight.bold,
-                                                color: AppColors.LightGreyColor,
-                                              ),
-                                              maxLines: 2,
-                                              overflow: TextOverflow.ellipsis,
-                                            ),
-                                          ),
-                                          Icon(
-                                            isExpanded
-                                                ? Icons.keyboard_arrow_up
-                                                : Icons.keyboard_arrow_down,
-                                            color: AppColors.OrangeColor,
-                                          ),
-                                        ],
-                                      ),
                                     ),
-                                  ),
-                                  const SizedBox(height: 10),
-                                  AnimatedCrossFade(
-                                    firstChild: const SizedBox.shrink(),
-                                    secondChild: LayoutBuilder(
-                                      builder: (context, constraints) {
-                                        double itemWidth =
-                                            (constraints.maxWidth - 10) / 2;
-
-                                        return Wrap(
-                                          spacing: 10,
-                                          runSpacing: 10,
-                                          children: items.map((item) {
-                                            final id = item["id"];
-                                            final state = buttonStates[id]!;
-
-                                            final imageUrl =
-                                                _imageUrlCache[item["image"]];
-
-                                            return SizedBox(
-                                              width: itemWidth,
-                                              child: GestureDetector(
-                                                onTap: () =>
-                                                    _showMenuBottomSheet(item),
-                                                child: Container(
-                                                  decoration: BoxDecoration(
-                                                    color: AppColors
-                                                        .primaryBackground,
-                                                    borderRadius:
-                                                        BorderRadius.circular(
-                                                          16,
-                                                        ),
-                                                    boxShadow: [
-                                                      BoxShadow(
-                                                        color: Colors.black
-                                                            .withOpacity(0.05),
-                                                        blurRadius: 4,
-                                                        offset: const Offset(
-                                                          0,
-                                                          2,
-                                                        ),
-                                                      ),
-                                                    ],
-                                                  ),
-                                                  child: Column(
-                                                    crossAxisAlignment:
-                                                        CrossAxisAlignment
-                                                            .stretch,
-                                                    children: [
-                                                      // Image with shimmer
-                                                      Container(
-                                                        height: 120,
-                                                        decoration: BoxDecoration(
-                                                          borderRadius:
-                                                              const BorderRadius.vertical(
-                                                                top:
-                                                                    Radius.circular(
-                                                                      16,
-                                                                    ),
-                                                              ),
-                                                        ),
-                                                        child: _buildImage(
-                                                          item["image"],
-                                                        ),
-                                                      ),
-                                                      const SizedBox(height: 8),
-                                                      // Name
-                                                      Container(
-                                                        height: 60,
-                                                        padding:
-                                                            const EdgeInsets.symmetric(
-                                                              horizontal: 8,
-                                                            ),
-                                                        child: Text(
-                                                          item["name"],
-                                                          style: const TextStyle(
-                                                            fontSize: 16,
-                                                            fontWeight:
-                                                                FontWeight.bold,
-                                                            color: AppColors
-                                                                .LightGreyColor,
-                                                          ),
-                                                          maxLines: 2,
-                                                          overflow: TextOverflow
-                                                              .ellipsis,
-                                                        ),
-                                                      ),
-                                                      const SizedBox(height: 4),
-                                                      // Row with price and button
-                                                      Padding(
-                                                        padding:
-                                                            const EdgeInsets.symmetric(
-                                                              horizontal: 8,
-                                                            ),
-                                                        child: Row(
-                                                          mainAxisAlignment:
-                                                              MainAxisAlignment
-                                                                  .spaceBetween,
-                                                          children: [
-                                                            Text(
-                                                              item["price"],
-                                                              style: const TextStyle(
-                                                                color: AppColors
-                                                                    .OrangeColor,
-                                                                fontWeight:
-                                                                    FontWeight
-                                                                        .bold,
-                                                              ),
-                                                            ),
-                                                            ToggleAddButton(
-                                                              isCompleted:
-                                                                  state["isCompleted"],
-                                                              count:
-                                                                  state["count"],
-                                                              onChanged:
-                                                                  (
-                                                                    newCompleted,
-                                                                    newCount,
-                                                                  ) {
-                                                                    _updateItemCount(
-                                                                      id,
-                                                                      newCount,
-                                                                      item,
-                                                                    );
-                                                                  },
-                                                            ),
-                                                          ],
-                                                        ),
-                                                      ),
-                                                      const SizedBox(height: 8),
-                                                    ],
-                                                  ),
-                                                ),
-                                              ),
-                                            );
-                                          }).toList(),
-                                        );
-                                      },
-                                    ),
-                                    crossFadeState: isExpanded
-                                        ? CrossFadeState.showSecond
-                                        : CrossFadeState.showFirst,
-                                    duration: const Duration(milliseconds: 300),
-                                  ),
-                                ],
-                              ),
-                            );
-                          }).toList(),
-                        ),
+                                  ],
+                                ),
+                              );
+                            }).toList(),
+                          ),
+                  ),
                 ),
               ),
             ],

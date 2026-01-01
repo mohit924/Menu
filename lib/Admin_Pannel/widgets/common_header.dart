@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:menu_scan_web/Admin_Pannel/ui/Category_List_Page.dart';
 import 'package:menu_scan_web/Admin_Pannel/ui/Contact_Us_Page.dart';
 import 'package:menu_scan_web/Admin_Pannel/ui/Dashboard.dart';
@@ -32,6 +33,30 @@ class CommonHeader extends StatefulWidget {
 
 class _CommonHeaderState extends State<CommonHeader> {
   final TextEditingController _controller = TextEditingController();
+  String? helpVideoUrl;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadHelpVideoUrl();
+  }
+
+  Future<void> _loadHelpVideoUrl() async {
+    try {
+      final doc = await FirebaseFirestore.instance
+          .collection('helpvideo')
+          .doc('OHMVvKJG8ZJ0irp1pRmQ')
+          .get();
+
+      if (doc.exists) {
+        setState(() {
+          helpVideoUrl = doc['link'] as String?;
+        });
+      }
+    } catch (e) {
+      debugPrint("Error fetching help video URL: $e");
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -50,9 +75,17 @@ class _CommonHeaderState extends State<CommonHeader> {
           child: Row(
             children: [
               const SizedBox(width: 12),
-              if (!isDesktop) MobileMenuButton(currentPage: widget.currentPage),
+              if (!isDesktop)
+                MobileMenuButton(
+                  currentPage: widget.currentPage,
+                  helpVideoUrl: helpVideoUrl,
+                ),
               const SizedBox(width: 12),
-              if (isDesktop) HeaderMenuButtons(currentPage: widget.currentPage),
+              if (isDesktop)
+                HeaderMenuButtons(
+                  currentPage: widget.currentPage,
+                  helpVideoUrl: helpVideoUrl,
+                ),
               if (isDesktop) const Spacer(),
               Expanded(
                 child: Padding(
@@ -83,7 +116,13 @@ class _CommonHeaderState extends State<CommonHeader> {
 // ------------------- Desktop Menu -------------------
 class HeaderMenuButtons extends StatelessWidget {
   final String currentPage;
-  const HeaderMenuButtons({super.key, required this.currentPage});
+  final String? helpVideoUrl;
+
+  const HeaderMenuButtons({
+    super.key,
+    required this.currentPage,
+    this.helpVideoUrl,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -99,12 +138,7 @@ class HeaderMenuButtons extends StatelessWidget {
         const SizedBox(width: 24),
         _headerButton(context, "Contact Us", const ContactUsPage()),
         const SizedBox(width: 24),
-        // _headerButton(
-        //   context,
-        //   "Help",
-        //   null,
-        //   url: "https://youtu.be/0MT5f6_cn7o?si=E_fVRJ40d-uO-Vpx",
-        // ),
+        _headerButton(context, "Help", null, url: helpVideoUrl),
       ],
     );
   }
@@ -118,7 +152,7 @@ class HeaderMenuButtons extends StatelessWidget {
     final isActive = text == currentPage;
     return InkWell(
       onTap: () async {
-        if (url != null) {
+        if (url != null && url.isNotEmpty) {
           final uri = Uri.parse(url);
           if (await canLaunchUrl(uri)) {
             await launchUrl(uri, mode: LaunchMode.externalApplication);
@@ -142,7 +176,13 @@ class HeaderMenuButtons extends StatelessWidget {
 // ------------------- Mobile Bottom Sheet -------------------
 class MobileMenuButton extends StatelessWidget {
   final String currentPage;
-  const MobileMenuButton({super.key, required this.currentPage});
+  final String? helpVideoUrl;
+
+  const MobileMenuButton({
+    super.key,
+    required this.currentPage,
+    this.helpVideoUrl,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -162,12 +202,7 @@ class MobileMenuButton extends StatelessWidget {
             _bottomSheetItem(context, "Items", const ItemListPage()),
             _bottomSheetItem(context, "Generate Qr", const GenerateQr()),
             _bottomSheetItem(context, "Contact", const ContactUsPage()),
-            // _bottomSheetItem(
-            //   context,
-            //   "Help",
-            //   null,
-            //   url: "https://youtu.be/0MT5f6_cn7o?si=E_fVRJ40d-uO-Vpx",
-            // ),
+            _bottomSheetItem(context, "Help", null, url: helpVideoUrl),
             const SizedBox(height: 12),
           ],
         ),
@@ -193,7 +228,7 @@ class MobileMenuButton extends StatelessWidget {
       ),
       onTap: () async {
         Navigator.pop(context);
-        if (url != null) {
+        if (url != null && url.isNotEmpty) {
           final uri = Uri.parse(url);
           if (await canLaunchUrl(uri)) {
             await launchUrl(uri, mode: LaunchMode.externalApplication);
@@ -206,6 +241,7 @@ class MobileMenuButton extends StatelessWidget {
   }
 }
 
+// ------------------- Search Field -------------------
 class SearchField extends StatelessWidget {
   final TextEditingController controller;
   final ValueChanged<String>? onChanged;
@@ -251,6 +287,7 @@ class SearchField extends StatelessWidget {
   }
 }
 
+// ------------------- Profile Avatar -------------------
 class ProfileAvatar extends StatelessWidget {
   const ProfileAvatar({super.key});
 

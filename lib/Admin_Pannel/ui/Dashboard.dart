@@ -154,112 +154,126 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
           ),
           const SizedBox(height: 16),
           Expanded(
-            child: SingleChildScrollView(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                children: filteredCategories.map((category) {
-                  return Container(
-                    margin: const EdgeInsets.only(bottom: 16),
-                    padding: const EdgeInsets.all(12),
-                    decoration: BoxDecoration(
-                      color: AppColors.secondaryBackground,
-                      borderRadius: BorderRadius.circular(12),
+            child: filteredCategories.isEmpty
+                ? Center(
+                    child: Text(
+                      "No categories found. Please add a category.",
+                      style: TextStyle(
+                        color: AppColors.LightGreyColor,
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                      ),
                     ),
+                  )
+                : SingleChildScrollView(
+                    padding: const EdgeInsets.all(16),
                     child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        InkWell(
-                          onTap: () {
-                            setState(() {
-                              category["expanded"] =
-                                  !(category["expanded"] as bool);
-                            });
-                          },
-                          child: Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: filteredCategories.map((category) {
+                        return Container(
+                          margin: const EdgeInsets.only(bottom: 16),
+                          padding: const EdgeInsets.all(12),
+                          decoration: BoxDecoration(
+                            color: AppColors.secondaryBackground,
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              Row(
-                                children: [
-                                  Icon(
-                                    category["icon"],
-                                    color: AppColors.OrangeColor,
-                                  ),
-                                  const SizedBox(width: 8),
-                                  // Wrap Text in Expanded so maxLines works
-                                  SizedBox(
-                                    width:
-                                        MediaQuery.of(context).size.width *
-                                        0.6, // adjust as needed
-                                    child: Text(
-                                      category["name"],
-                                      style: const TextStyle(
-                                        fontSize: 18,
-                                        fontWeight: FontWeight.bold,
-                                        color: AppColors.LightGreyColor,
-                                      ),
-                                      maxLines: 2,
-                                      overflow: TextOverflow.ellipsis,
+                              InkWell(
+                                onTap: () {
+                                  setState(() {
+                                    category["expanded"] =
+                                        !(category["expanded"] as bool);
+                                  });
+                                },
+                                child: Row(
+                                  mainAxisAlignment:
+                                      MainAxisAlignment.spaceBetween,
+                                  children: [
+                                    Row(
+                                      children: [
+                                        Icon(
+                                          category["icon"],
+                                          color: AppColors.OrangeColor,
+                                        ),
+                                        const SizedBox(width: 8),
+                                        // Wrap Text in Expanded so maxLines works
+                                        SizedBox(
+                                          width:
+                                              MediaQuery.of(
+                                                context,
+                                              ).size.width *
+                                              0.6, // adjust as needed
+                                          child: Text(
+                                            category["name"],
+                                            style: const TextStyle(
+                                              fontSize: 18,
+                                              fontWeight: FontWeight.bold,
+                                              color: AppColors.LightGreyColor,
+                                            ),
+                                            maxLines: 2,
+                                            overflow: TextOverflow.ellipsis,
+                                          ),
+                                        ),
+                                      ],
                                     ),
-                                  ),
-                                ],
+                                    Icon(
+                                      category["expanded"]
+                                          ? Icons.keyboard_arrow_up
+                                          : Icons.keyboard_arrow_down,
+                                      color: AppColors.OrangeColor,
+                                      size: 28,
+                                    ),
+                                  ],
+                                ),
                               ),
-                              Icon(
-                                category["expanded"]
-                                    ? Icons.keyboard_arrow_up
-                                    : Icons.keyboard_arrow_down,
-                                color: AppColors.OrangeColor,
-                                size: 28,
-                              ),
+
+                              const SizedBox(height: 12),
+                              if (category["expanded"] as bool)
+                                LayoutBuilder(
+                                  builder: (context, constraints) {
+                                    final cardCount = isMobile
+                                        ? 1
+                                        : (constraints.maxWidth ~/ 320);
+                                    final spacing = 16.0;
+                                    final cardWidth = isMobile
+                                        ? constraints.maxWidth
+                                        : (constraints.maxWidth -
+                                                  (cardCount - 1) * spacing) /
+                                              cardCount;
+
+                                    return Wrap(
+                                      spacing: spacing,
+                                      runSpacing: spacing,
+                                      children: (category["items"] as List)
+                                          .map<Widget>(
+                                            (item) => SizedBox(
+                                              width: cardWidth,
+                                              child: ItemCard(
+                                                item: item,
+                                                isMobile: true,
+                                                onToggle: (val) {
+                                                  setState(() {
+                                                    item["available"] = val;
+                                                  });
+                                                  toggleAvailability(
+                                                    item["docId"],
+                                                    val,
+                                                  );
+                                                },
+                                              ),
+                                            ),
+                                          )
+                                          .toList(),
+                                    );
+                                  },
+                                ),
                             ],
                           ),
-                        ),
-
-                        const SizedBox(height: 12),
-                        if (category["expanded"] as bool)
-                          LayoutBuilder(
-                            builder: (context, constraints) {
-                              final cardCount = isMobile
-                                  ? 1
-                                  : (constraints.maxWidth ~/ 320);
-                              final spacing = 16.0;
-                              final cardWidth = isMobile
-                                  ? constraints.maxWidth
-                                  : (constraints.maxWidth -
-                                            (cardCount - 1) * spacing) /
-                                        cardCount;
-
-                              return Wrap(
-                                spacing: spacing,
-                                runSpacing: spacing,
-                                children: (category["items"] as List)
-                                    .map<Widget>(
-                                      (item) => SizedBox(
-                                        width: cardWidth,
-                                        child: ItemCard(
-                                          item: item,
-                                          isMobile: true,
-                                          onToggle: (val) {
-                                            setState(() {
-                                              item["available"] = val;
-                                            });
-                                            toggleAvailability(
-                                              item["docId"],
-                                              val,
-                                            );
-                                          },
-                                        ),
-                                      ),
-                                    )
-                                    .toList(),
-                              );
-                            },
-                          ),
-                      ],
+                        );
+                      }).toList(),
                     ),
-                  );
-                }).toList(),
-              ),
-            ),
+                  ),
           ),
         ],
       ),

@@ -14,23 +14,19 @@ void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Firebase.initializeApp(options: DefaultFirebaseOptions.web);
 
-  // Parse URL segments
   final uri = Uri.parse(html.window.location.href);
   final segments = uri.pathSegments;
 
   String? hotelID;
   String? tableID;
 
-  // Only parse if URL has at least 1 segment
-  if (segments.isNotEmpty) {
+  if (segments.length >= 2) {
     final combined = segments.last;
 
-    // Safe substring: prevent RangeError
-    hotelID = combined.length >= 4 ? combined.substring(0, 4) : null;
-    tableID = combined.length > 4 ? combined.substring(4) : null;
+    hotelID = combined.substring(0, 4);
+    tableID = combined.substring(4);
   }
 
-  // Load saved hotelID from SharedPreferences
   final prefs = await SharedPreferences.getInstance();
   final savedHotelID = prefs.getString('hotelID');
 
@@ -41,7 +37,6 @@ void main() async {
         hotelID: hotelID,
         tableID: tableID,
         savedHotelID: savedHotelID,
-        isRootUrl: segments.isEmpty,
       ),
     ),
   );
@@ -51,32 +46,20 @@ class MyApp extends StatelessWidget {
   final String? hotelID;
   final String? tableID;
   final String? savedHotelID;
-  final bool isRootUrl;
 
-  const MyApp({
-    this.hotelID,
-    this.tableID,
-    this.savedHotelID,
-    this.isRootUrl = false,
-    super.key,
-  });
+  const MyApp({this.hotelID, this.tableID, this.savedHotelID, super.key});
 
   @override
   Widget build(BuildContext context) {
     Widget home;
 
     if (hotelID != null && tableID != null) {
-      // URL contains hotelID + tableID → go to MenuScreen
       home = MenuScreen(hotelID: hotelID!, tableID: tableID!);
-    } else if (isRootUrl) {
-      // Root URL → always show LoginPage
-      home = const LoginPage();
     } else if (savedHotelID != null && savedHotelID!.isNotEmpty) {
-      // Returning user → AdminDashboard
       home = AdminDashboardPage();
     } else {
-      // Fallback → LoginPage
       home = const LoginPage();
+      // home = MenuScreen(hotelID: "UFKH", tableID: "2");
     }
 
     return MaterialApp(

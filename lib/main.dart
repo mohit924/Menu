@@ -24,15 +24,10 @@ void main() async {
   if (segments.isNotEmpty) {
     final combined = segments.last;
 
-    // Only if combined has 5+ characters → customer URL
+    // OLD working logic: first 4 chars = hotelID, rest = tableID
     if (combined.length >= 5) {
-      hotelID = combined.substring(
-        0,
-        combined.length - 2,
-      ); // hotelID (variable length)
-      tableID = combined.substring(
-        combined.length - 2,
-      ); // tableID (last 2 digits)
+      hotelID = combined.substring(0, 4);
+      tableID = combined.substring(4);
     }
   }
 

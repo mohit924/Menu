@@ -13,8 +13,15 @@ import 'package:menu_scan_web/Admin_Pannel/widgets/common_header.dart';
 import 'package:menu_scan_web/Custom/App_colors.dart';
 import 'dart:io';
 import 'package:path_provider/path_provider.dart';
-import 'dart:html' as html;
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:pdf/pdf.dart';
+import 'package:pdf/widgets.dart' as pw;
+import 'package:printing/printing.dart';
+import 'dart:typed_data';
+import 'dart:io';
+import 'package:flutter/foundation.dart' show kIsWeb;
+import 'dart:html' as html;
+import 'package:path_provider/path_provider.dart';
 
 class GenerateQr extends StatefulWidget {
   const GenerateQr({super.key});
@@ -28,12 +35,83 @@ class _GenerateQrState extends State<GenerateQr> {
   final CollectionReference qrCollection = FirebaseFirestore.instance
       .collection('qrcodes');
   final Map<String, GlobalKey> _qrKeys = {};
-  bool _isLoading = false; // loader flag
+  bool _isLoading = false;
 
   @override
   void initState() {
     super.initState();
     _loadHotelID();
+  }
+
+  Future<void> downloadOrShareQrPdf({
+    required int tableId,
+    required String qrUrl,
+    bool share = false, // set true if you want to share
+  }) async {
+    final pdf = pw.Document();
+
+    pdf.addPage(
+      pw.Page(
+        pageFormat: PdfPageFormat.a4,
+        build: (context) {
+          return pw.Center(
+            child: pw.Column(
+              mainAxisAlignment: pw.MainAxisAlignment.center,
+              children: [
+                pw.BarcodeWidget(
+                  barcode: pw.Barcode.qrCode(),
+                  data: qrUrl,
+                  width: 200,
+                  height: 200,
+                ),
+                pw.SizedBox(height: 20),
+                pw.Text(
+                  "Table ID: $tableId",
+                  style: pw.TextStyle(
+                    fontSize: 18,
+                    fontWeight: pw.FontWeight.bold,
+                  ),
+                ),
+                pw.SizedBox(height: 10),
+                pw.Text(qrUrl, style: pw.TextStyle(fontSize: 14)),
+              ],
+            ),
+          );
+        },
+      ),
+    );
+
+    final fileName = 'Table_$tableId.pdf';
+
+    if (kIsWeb) {
+      // Web download or share
+      final bytes = await pdf.save();
+      final blob = html.Blob([bytes], 'application/pdf');
+      final url = html.Url.createObjectUrlFromBlob(blob);
+
+      if (share) {
+        // Share PDF (web can only copy link or use navigator.share in PWA)
+        await html.window.navigator.share?.call({
+          'title': 'QR PDF',
+          'url': url,
+        });
+      } else {
+        final anchor = html.AnchorElement(href: url)
+          ..setAttribute('download', fileName)
+          ..click();
+      }
+      html.Url.revokeObjectUrl(url);
+    } else {
+      // Mobile or Desktop
+      final bytes = await pdf.save();
+      final directory = await getApplicationDocumentsDirectory();
+      final file = File('${directory.path}/$fileName');
+      await file.writeAsBytes(bytes);
+
+      if (share) {
+        await Printing.sharePdf(bytes: bytes, filename: fileName);
+      }
+    }
   }
 
   Future<void> _loadHotelID() async {
@@ -102,55 +180,8 @@ class _GenerateQrState extends State<GenerateQr> {
     }
   }
 
-  Future<void> _shareQRWithImage(String id, String url, int tableId) async {
-    try {
-      final key = _qrKeys[id];
-      if (key == null) return;
-
-      final boundary =
-          key.currentContext?.findRenderObject() as RenderRepaintBoundary?;
-      if (boundary == null) return;
-
-      final image = await boundary.toImage(pixelRatio: 10.0);
-      final byteData = await image.toByteData(format: ui.ImageByteFormat.png);
-      final pngBytes = byteData!.buffer.asUint8List();
-      final fileName = 'Table_$tableId.png';
-
-      if (kIsWeb) {
-        // On web: share only URL (file sharing is limited)
-        final blob = html.Blob([pngBytes]);
-        final urlBlob = html.Url.createObjectUrlFromBlob(blob);
-
-        // Optional: trigger download
-        final anchor = html.AnchorElement(href: urlBlob)
-          ..setAttribute("download", fileName)
-          ..click();
-        html.Url.revokeObjectUrl(urlBlob);
-
-        // Also copy URL to clipboard or show snackbar
-        AppSnackBar.show(
-          context,
-          message: 'QR image downloaded. You can share the URL: $url',
-          type: SnackType.success,
-        );
-      } else {
-        // On mobile/desktop: share image + URL
-        final directory = await getApplicationDocumentsDirectory();
-        final file = File('${directory.path}/$fileName');
-        await file.writeAsBytes(pngBytes);
-
-        await Share.shareXFiles([
-          XFile(file.path),
-        ], text: 'Scan this QR code for Table $tableId:\n$url');
-      }
-    } catch (e) {
-      debugPrint("Error sharing QR: $e");
-      AppSnackBar.show(
-        context,
-        message: 'Error sharing QR: $e',
-        type: SnackType.error,
-      );
-    }
+  void _shareQR(String url) {
+    Share.share(url);
   }
 
   Future<void> _downloadQrImage(String id, int tableId) async {
@@ -291,7 +322,7 @@ class _GenerateQrState extends State<GenerateQr> {
                                     key: qrKey,
                                     child: PrettyQr(
                                       data: url,
-                                      size: 200, // bigger size
+                                      size: 100, // bigger size
                                       elementColor: AppColors.whiteColor,
                                       roundEdges: true,
                                     ),
@@ -319,10 +350,10 @@ class _GenerateQrState extends State<GenerateQr> {
                                                 color: AppColors.OrangeColor,
                                               ),
                                               onPressed: () =>
-                                                  _shareQRWithImage(
-                                                    doc.id,
-                                                    url,
-                                                    tableId,
+                                                  downloadOrShareQrPdf(
+                                                    tableId: tableId,
+                                                    qrUrl: url,
+                                                    share: true, // share PDF
                                                   ),
                                             ),
                                             IconButton(
@@ -330,10 +361,13 @@ class _GenerateQrState extends State<GenerateQr> {
                                                 Icons.download,
                                                 color: AppColors.OrangeColor,
                                               ),
-                                              onPressed: () => _downloadQrImage(
-                                                doc.id,
-                                                tableId,
-                                              ),
+                                              onPressed: () =>
+                                                  downloadOrShareQrPdf(
+                                                    tableId: tableId,
+                                                    qrUrl: url,
+                                                    share:
+                                                        false, // just download
+                                                  ),
                                             ),
                                           ],
                                         ),
